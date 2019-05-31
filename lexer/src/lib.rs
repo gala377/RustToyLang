@@ -2,38 +2,44 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display};
 
-pub mod source;
-pub mod token;
+use source;
+use source::Source;
 
+use error;
+use error::LangError;
+
+pub mod token;
 mod helpers;
 
-use crate::source::Source;
 
 pub type Token<T> = token::Token<<T as Source>::Pointer>;
-pub type Result<T> = std::result::Result<Option<Token<T>>, LexingError<<T as Source>::Pointer>>;
 
-pub struct Lexer<S: Source> {
-    src: S,
+pub struct Lexer<'a, 'b, S: Source> {
+    src: &'a mut S,
     curr_token: Option<Token<S>>,
+    handler: &'b mut error::handler::Handler<S>,
 }
 
 
-impl<S: Source> Lexer<S> {
+impl<'a, 'b, S> Lexer<'a, 'b, S> where 'a: 'b,
+                                        S: Source,
+                                        S::Pointer: 'static {
     
-    pub fn new(src: S) -> std::result::Result<Self, LexingError<S::Pointer>> {
+    pub fn new(src: &'a mut S, handler: &'b mut error::handler::Handler<S>) -> Self {
         let mut s =  Self {
             src,
             curr_token: None,
+            handler,
         };
-        s.next()?;
-        return Ok(s);
+        s.next();
+        return s;
     }
 
     pub fn curr(&self) -> Option<Token<S>> {
         self.curr_token.clone()
     }
 
-    pub fn next(&mut self) -> Result<S> {
+    pub fn next(&mut self) -> Option<Token<S>> {
         let mut opt = self.src.curr_char();
         while let Some(ch) = opt {
             if ch == '#' || ch.is_whitespace() || ch == '\n' {
@@ -48,16 +54,19 @@ impl<S: Source> Lexer<S> {
             Some(ch) if ch.is_digit(10) => self.collect_integer(),
             Some(ch) if helpers::is_beg_of_ident(ch) => self.collect_identifier(),
             Some(ch) if helpers::is_part_of_op(ch) => self.collect_operator(),
-            Some(_) => Err(
-                LexingError{
-                    kind: LexingErrorKind::UnknownCharacter,
-                    beg: self.src.curr_ptr(),
-                    end: self.src.curr_ptr(),
-                }),
-            None => Ok(None),
+            Some(_) => {
+                self.handler.error(
+                    Box::new(LexingError{
+                        kind: LexingErrorKind::UnknownCharacter,
+                        beg: self.src.curr_ptr(),
+                        end: self.src.curr_ptr(),
+                }));
+                None
+            },
+            None => None,
         };
-        self.curr_token = res?;
-        return Ok(self.curr());
+        self.curr_token = res;
+        return self.curr();
     }
 
     fn skip_whitespaces(&mut self) {
@@ -81,7 +90,7 @@ impl<S: Source> Lexer<S> {
         }
     }
 
-    fn collect_integer(&mut self) -> Result<S> {
+    fn collect_integer(&mut self) -> Option<Token<S>> {
         if let Some('0') = self.src.curr_char() {
             return self.collect_integer_zero_literal();
         }
@@ -90,31 +99,37 @@ impl<S: Source> Lexer<S> {
         
     }
 
-    fn collect_integer_zero_literal(&mut self) -> Result<S> {
+    fn collect_integer_zero_literal(&mut self) -> Option<Token<S>> {
         let beg = self.src.curr_ptr();
         match self.src.next_char() {
-            Some(ch) if ch.is_digit(10) => Err(
-                LexingError{
-                    kind: LexingErrorKind::IntegersCannotStartWithZero,
-                    beg,
-                    end: self.src.curr_ptr(),
-                }),
-            Some(ch) if ch.is_alphabetic() => Err(
-                LexingError{
-                    kind: LexingErrorKind::NotAnInterger,
-                    beg,
-                    end: self.src.curr_ptr(),
-                }),
-            _ => Ok(Some(token::Token{
+            Some(ch) if ch.is_digit(10) => {
+                self.handler.error(
+                    Box::new(LexingError{
+                        kind: LexingErrorKind::IntegersCannotStartWithZero,
+                        beg,
+                        end: self.src.curr_ptr(),
+                }));
+                None
+            },
+            Some(ch) if ch.is_alphabetic() => {
+                self.handler.error(
+                    Box::new(LexingError{
+                        kind: LexingErrorKind::NotAnInterger,
+                        beg,
+                        end: self.src.curr_ptr(),
+                }));
+                None
+            },
+            _ => Some(token::Token{
                     kind: token::Kind::IntLiteral,
                     value: token::Value::Integer(0),
                     beg , 
                     end: self.src.curr_ptr(),
-                })),
+            }),
         }
     }
 
-    fn collect_non_zero_integer_literal(&mut self)  -> Result<S> {
+    fn collect_non_zero_integer_literal(&mut self)  -> Option<Token<S>> {
         let mut symbol = String::new();
         symbol.push(self.src.curr_char().unwrap());
         let beg = self.src.curr_ptr();
@@ -122,27 +137,30 @@ impl<S: Source> Lexer<S> {
         while let Some(ch) = self.src.next_char() {
             match ch {
                 ch if ch.is_digit(10) => symbol.push(ch),
-                ch if ch.is_alphabetic() => return Err(
-                    LexingError{
-                        kind: LexingErrorKind::NotAnInterger,
-                        beg,
-                        end: self.src.curr_ptr(),
-                    }),
+                ch if ch.is_alphabetic() => {
+                    self.handler.error(
+                        Box::new(LexingError{
+                            kind: LexingErrorKind::NotAnInterger,
+                            beg,
+                            end: self.src.curr_ptr(),
+                        }));
+                    return None;
+                },
                 _ => break,
             }
         }
 
-        return Ok( Some(
+        return Some(
             token::Token {
                 kind: token::Kind::IntLiteral,
                 value: token::Value::Integer(symbol.parse().unwrap()),
                 beg, 
                 end: self.src.curr_ptr(),
             }
-        ));
+        );
     }
     
-    fn collect_identifier(&mut self) -> Result<S> {
+    fn collect_identifier(&mut self) -> Option<Token<S>> {
         let mut symbol = String::new();
         symbol.push(self.src.curr_char().unwrap());
         let beg = self.src.curr_ptr();
@@ -157,15 +175,15 @@ impl<S: Source> Lexer<S> {
         if let Some(k_kind) = helpers::is_keyword(&symbol) {
             kind = k_kind;
         }
-        return Ok(Some(token::Token{
+        return Some(token::Token{
                 kind,
                 value: token::Value::String(symbol), 
                 beg,
                 end: self.src.curr_ptr(),
-            }));
+            });
     }
 
-    fn collect_operator(&mut self) -> Result<S> {
+    fn collect_operator(&mut self) -> Option<Token<S>> {
         let mut symbol = String::new();
         symbol.push(self.src.curr_char().unwrap());
         let beg = self.src.curr_ptr();
@@ -178,12 +196,12 @@ impl<S: Source> Lexer<S> {
             }   
         }
         symbol.pop();
-        Ok(Some(token::Token{
+        Some(token::Token{
             kind: op_kind,
             value: token::Value::String(symbol),
             beg,
             end: self.src.curr_ptr(),
-        }))
+        })
     }
 }
 
@@ -205,17 +223,33 @@ pub struct LexingError<T: source::Pointer> {
 impl<T: source::Pointer + Debug> Error for LexingError<T> {}
 impl<T: source::Pointer> Display for LexingError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mess = match &self.kind {
-            LexingErrorKind::IntegersCannotStartWithZero => "integers cannot start with 0",
-            LexingErrorKind::NotAnInterger => "literal is not an interger but it starts like one",
-            LexingErrorKind::UnknownCharacter => "uknown character",
-        };
+        let mess = self.desc();
         writeln!(f, "Lexing error [({}:{}) - ({}:{})] {}",
             self.beg.line(),
             self.beg.position(),
             self.end.line(),
             self.end.position(),
             mess)
+    }
+}
+
+impl<T: source::Pointer> LangError for LexingError<T> {
+    type Ptr = T;
+
+    fn desc(&self) -> &str {
+        match &self.kind {
+            LexingErrorKind::IntegersCannotStartWithZero => "integers cannot start with 0",
+            LexingErrorKind::NotAnInterger => "literal is not an interger but it starts like one",
+            LexingErrorKind::UnknownCharacter => "uknown character",
+        }
+    }
+
+    fn begin(&self) -> &Self::Ptr {
+        &self.beg
+    }
+
+    fn end(&self) -> &Self::Ptr {
+        &self.end
     }
 }
 
@@ -228,12 +262,16 @@ mod tests {
 
     #[test]
     fn lexer_creation_from_empty_string_source() {
-        Lexer::new(source::string::String::from("")).unwrap();
+        let mut src = source::string::String::from("");
+        let mut h = error::handler::Handler::new();
+        Lexer::new(&mut src, &mut h);
     }
 
     #[test]
     fn reading_first_token_from_empty_lexer() {
-        let l = Lexer::new(source::string::String::from("")).unwrap();
+        let mut src = source::string::String::from("");
+        let mut h = error::handler::Handler::new();
+        let l = Lexer::new(&mut src, &mut h); 
         assert_match!(
             l.curr(),
             None);
@@ -241,15 +279,19 @@ mod tests {
 
     #[test]
     fn reading_past_first_token_from_empty_lexer() {
-        let mut l = Lexer::new(source::string::String::from("")).unwrap();
+        let mut src = source::string::String::from("");
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h); 
         assert_match!(
             l.next(),
-            Ok(None));
+            None);
     }
 
     #[test]
     fn reading_first_token_from_just_integer_in_source() {
-        let l = Lexer::new(source::string::String::from("123")).unwrap();
+        let mut src = source::string::String::from("123");
+        let mut h = error::handler::Handler::new();
+        let l = Lexer::new(&mut src, &mut h); 
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -261,10 +303,12 @@ mod tests {
 
     #[test]
     fn skipping_comments_and_whitespaces() {
-        let l = Lexer::new(source::string::String::from(r#"
+        let mut src = source::string::String::from(r#"
             # comment tdg d dg 
-        123
-        "#)).unwrap();
+            123
+        "#);
+        let mut h = error::handler::Handler::new();
+        let l = Lexer::new(&mut src, &mut h);
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -276,7 +320,9 @@ mod tests {
 
     #[test]
     fn get_zero_integer_literal() {
-        let l = Lexer::new(source::string::String::from(r#"0"#)).unwrap();
+        let mut src = source::string::String::from(r#"0"#);
+        let mut h = error::handler::Handler::new();
+        let l = Lexer::new(&mut src, &mut h); 
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -289,29 +335,37 @@ mod tests {
     #[test]
     #[should_panic]
     fn panic_on_integer_starting_from_zero() {
-        Lexer::new(source::string::String::from(r#"01"#)).unwrap();
+        let mut src = source::string::String::from(r#"01"#);
+        let mut h = error::handler::Handler::new();
+        Lexer::new(&mut src, &mut h);
     }
 
     #[test]
     #[should_panic]
     fn panic_on_alpha_in_zero_literal() {
-        Lexer::new(source::string::String::from(r#"0a"#)).unwrap();
+        let mut src = source::string::String::from(r#"0a"#);
+        let mut h = error::handler::Handler::new();
+        Lexer::new(&mut src, &mut h);
     }
 
     #[test]
     #[should_panic]
     fn panic_on_alpha_in_nonzero_literal() {
-        Lexer::new(source::string::String::from(r#"657457a"#)).unwrap();
+        let mut src = source::string::String::from(r#"657457a"#);
+        let mut h = error::handler::Handler::new();
+        Lexer::new(&mut src, &mut h);
     }
 
     #[test]
     fn read_multiple_integers() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         1 2 3
         5
         6
-        "#)).unwrap();
-        l.next().unwrap(); l.next().unwrap(); l.next().unwrap(); l.next().unwrap();
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        l.next(); l.next(); l.next(); l.next();
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -323,11 +377,13 @@ mod tests {
 
     #[test]
     fn read_identifiers() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         some identifiers
-        "#)).unwrap();
-        l.next().unwrap(); 
-        let tok = l.next().unwrap().unwrap();
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        l.next(); 
+        let tok = l.next().unwrap();
         assert!(match tok {
             token::Token{
                 kind: token::Kind::Identifier,
@@ -341,11 +397,13 @@ mod tests {
 
     #[test]
     fn read_keywords() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         som134e def
-        "#)).unwrap();
-        l.next().unwrap(); 
-        let tok = l.next().unwrap().unwrap();
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        l.next(); 
+        let tok = l.next().unwrap();
         assert!(match tok {
             token::Token{
                 kind: token::Kind::FuncDef,
@@ -360,10 +418,12 @@ mod tests {
 
     #[test]
     fn read_identifiers_alongside_integers() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         s_242_ome 123
-        "#)).unwrap();
-        l.next().unwrap(); l.next().unwrap();
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        l.next(); l.next();
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -375,32 +435,36 @@ mod tests {
 
     #[test]
     fn read_multiple_operators() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         + - ++ -- , ()
-        "#)).unwrap();
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Addition);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Substraction);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Decrement);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Comma);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::LeftParenthesis);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::RightParenthesis);
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
+        assert_match!(l.next().unwrap().kind, token::Kind::Substraction);
+        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
+        assert_match!(l.next().unwrap().kind, token::Kind::Decrement);
+        assert_match!(l.next().unwrap().kind, token::Kind::Comma);
+        assert_match!(l.next().unwrap().kind, token::Kind::LeftParenthesis);
+        assert_match!(l.next().unwrap().kind, token::Kind::RightParenthesis);
     }
 
     #[test]
     fn read_multiple_operators_with_integers_before_and_after() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         12+0 - ++ -- , ()
-        "#)).unwrap();
-        assert_match!(l.next().unwrap().unwrap(),
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        assert_match!(l.next().unwrap(),
             token::Token{
                 kind: token::Kind::IntLiteral,
                 value: token::Value::Integer(12),
                 ..
             }
         );
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Addition);
-        assert_match!(l.next().unwrap().unwrap(),
+        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
+        assert_match!(l.next().unwrap(),
             token::Token{
                 kind: token::Kind::IntLiteral,
                 value: token::Value::Integer(0),
@@ -411,23 +475,27 @@ mod tests {
 
     #[test]
     fn read_multiple_operators_with_identifiers_before_and_after() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         _Adfaf_+_12_ - ++ -- , ()
-        "#)).unwrap();
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Identifier);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Addition);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Identifier);
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
+        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
+        assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
     }
 
     #[test]
     fn read_multiple_operators_each_being_part_of_itself() {
-        let mut l = Lexer::new(source::string::String::from(r#"0
+        let mut src = source::string::String::from(r#"0
         ++--+++++
-        "#)).unwrap();
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Decrement);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().unwrap().kind, token::Kind::Addition);        
+        "#);
+        let mut h = error::handler::Handler::new();
+        let mut l = Lexer::new(&mut src, &mut h);
+        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
+        assert_match!(l.next().unwrap().kind, token::Kind::Decrement);
+        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
+        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
+        assert_match!(l.next().unwrap().kind, token::Kind::Addition);        
     }
 }

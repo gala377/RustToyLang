@@ -11,3 +11,5 @@ path = "src/lib.rs"
 
 [dependencies]
 toylang-utility = { path = "../utility" }
+toylang-source = { path = "../source" }
+toylang-error = { path = "../error" }

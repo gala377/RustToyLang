@@ -8,11 +8,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "toylang-error"
+version = "0.1.0"
+dependencies = [
+ "toylang-source 0.1.0",
+]
+
+[[package]]
 name = "toylang-lexer"
 version = "0.1.0"
 dependencies = [
+ "toylang-error 0.1.0",
+ "toylang-source 0.1.0",
  "toylang-utility 0.1.0",
 ]
+
+[[package]]
+name = "toylang-source"
+version = "0.1.0"
 
 [[package]]
 name = "toylang-utility"
