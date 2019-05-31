@@ -1,0 +1,13 @@
+[package]
+name = "toylang-cli"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "rgc"
+path = "src/main.rs"
+
+
+[dependencies]
+toylang-lexer = { path = "../lexer" }

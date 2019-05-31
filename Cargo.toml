@@ -1,15 +1,8 @@
-[package]
-name = "toylang"
-version = "0.1.0"
-authors = ["Rafał Galczak <r.galczak@gmail.com>"]
-edition = "2018"
+[workspace]
 
-[lib]
-name = "lexer"
-path = "src/lexer/lib.rs"
+members = [
+    "lexer",
+    "cli",
+    "utility",
+]
 
-[[bin]]
-name = "rgc"
-path = "src/main.rs"
-
-[dependencies]
