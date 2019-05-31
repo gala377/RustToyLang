@@ -102,7 +102,7 @@ impl Source for String {
     }   
 }   
 
-
+#[derive(Clone, Debug)]
 pub struct Pointer {
     index: usize,
 

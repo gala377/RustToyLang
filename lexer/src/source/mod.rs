@@ -23,7 +23,7 @@ pub trait Source {
     fn source_between(&self, begin: &Self::Pointer, end: &Self::Pointer) -> String;
 }
 
-pub trait Pointer {
+pub trait Pointer: Clone {
     /// Returns line number, starting from one, from the 
     /// place in the source the pointer is pointing to.
     fn line(&self) -> usize;
