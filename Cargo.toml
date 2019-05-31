@@ -4,4 +4,12 @@ version = "0.1.0"
 authors = ["Rafał Galczak <r.galczak@gmail.com>"]
 edition = "2018"
 
+[lib]
+name = "lexer"
+path = "src/lexer/lib.rs"
+
+[[bin]]
+name = "rgc"
+path = "src/main.rs"
+
 [dependencies]
