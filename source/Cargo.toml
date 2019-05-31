@@ -1,0 +1,12 @@
+[package]
+name = "toylang-source"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "source"
+path = "src/lib.rs"
+
+
+[dependencies]
