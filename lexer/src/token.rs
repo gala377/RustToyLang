@@ -1,7 +1,7 @@
 
 use source;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Kind {
     // General
     Identifier,
@@ -19,18 +19,22 @@ pub enum Kind {
     Increment,
     Decrement, 
 
-    //Literals
-    IntLiteral
+    // Literals
+    IntLiteral,
+
+    // Special
+    /// Poisoned token represents invalid token 
+    Poisoned,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Integer(i64),
     String(std::string::String),
     None,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token<T: source::Pointer> {
     pub kind: Kind,
     pub value: Value,

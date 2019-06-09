@@ -11,3 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 toylang-lexer = { path = "../lexer" }
+toylang-error = { path = "../error" }
+toylang-source = { path = "../source" }

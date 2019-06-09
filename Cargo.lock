@@ -4,7 +4,9 @@
 name = "toylang-cli"
 version = "0.1.0"
 dependencies = [
+ "toylang-error 0.1.0",
  "toylang-lexer 0.1.0",
+ "toylang-source 0.1.0",
 ]
 
 [[package]]
