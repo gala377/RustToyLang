@@ -1,0 +1,15 @@
+[package]
+name = "toylang-pass"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "pass"
+path = "src/lib.rs"
+
+
+[dependencies]
+toylang-parser = {path = "../parser" }
+toylang-utility = { path = "../utility" }
+toylang-error = { path = "../error" }

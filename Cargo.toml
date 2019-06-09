@@ -5,5 +5,7 @@ members = [
     "cli",
     "utility",
     "error",
+    "parser",
+    "pass",
 ]
 

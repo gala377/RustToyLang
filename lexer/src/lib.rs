@@ -251,9 +251,12 @@ impl<'src, 'err, S> Lexer<'src, 'err, S> where S: Source, S::Pointer: 'static {
     fn collect_char(&mut self) -> Option<Token<S>>{
         let ch = self.curr_char().unwrap();
         eprintln!("Lexer - next(): Unknown character, returning None");                
-        self.uknown_character_error();
+        self.unknown_character_error();
         let mut symbol = String::new();
         symbol.push(ch);
+
+        self.next_char();
+        
         Some(token::Token{
             kind: token::Kind::Poisoned,
             value: token::Value::String(symbol),
@@ -262,11 +265,11 @@ impl<'src, 'err, S> Lexer<'src, 'err, S> where S: Source, S::Pointer: 'static {
         })
     }
 
-    fn uknown_character_error(&mut self) {
+    fn unknown_character_error(&mut self) {
         eprintln!("Lexer - unknown_character_error(): Error");                
         self.handler.borrow_mut().err(
             Box::new(LexingError{
-                kind: LexingErrorKind::UnknownCharacter,
+                kind: LexingErrorKind::UnknownCharacter(self.curr_char().unwrap()),
                 beg: self.curr_ptr(),
                 end: self.curr_ptr(),
         }));
@@ -300,7 +303,7 @@ impl<'src, 'err, S> Lexer<'src, 'err, S> where S: Source, S::Pointer: 'static {
 pub enum LexingErrorKind {
     IntegersCannotStartWithZero,
     NotAnInterger,
-    UnknownCharacter,
+    UnknownCharacter(char),
 
 }
 
@@ -332,7 +335,7 @@ impl<T: source::Pointer> LangError for LexingError<T> {
         match &self.kind {
             LexingErrorKind::IntegersCannotStartWithZero => "integers cannot start with 0",
             LexingErrorKind::NotAnInterger => "literal is not an interger but it starts like one",
-            LexingErrorKind::UnknownCharacter => "uknown character",
+            LexingErrorKind::UnknownCharacter(_) => "unkown character",
         }
     }
 

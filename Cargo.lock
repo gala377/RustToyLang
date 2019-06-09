@@ -26,6 +26,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "toylang-parser"
+version = "0.1.0"
+dependencies = [
+ "toylang-error 0.1.0",
+ "toylang-lexer 0.1.0",
+ "toylang-source 0.1.0",
+ "toylang-utility 0.1.0",
+]
+
+[[package]]
+name = "toylang-pass"
+version = "0.1.0"
+dependencies = [
+ "toylang-error 0.1.0",
+ "toylang-parser 0.1.0",
+ "toylang-utility 0.1.0",
+]
+
+[[package]]
 name = "toylang-source"
 version = "0.1.0"
 
