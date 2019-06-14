@@ -10,4 +10,5 @@ path = "src/lib.rs"
 
 
 [dependencies]
-libftl_source = { path = "../libftl_source" }
+ftl_source = { path = "../libftl_source" }
+ftl_utility = { path = "../libftl_utility" }

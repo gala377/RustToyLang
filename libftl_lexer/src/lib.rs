@@ -1,14 +1,14 @@
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use ftl_source;
 use ftl_source::Source;
-
 use ftl_error;
 use ftl_error::LangError;
+use ftl_utility::RcRef;
+use ftl_session::Session;
+
 
 pub mod token;
 mod helpers;
@@ -19,17 +19,22 @@ mod helpers;
 pub type Token<T> = token::Token<<T as Source>::Pointer>;
 
 pub struct Lexer<S: Source> {
-    src: Rc<RefCell<S>>,
-    handler: Rc<RefCell<ftl_error::Handler<S>>>,
+    
+    session: RcRef<Session<S>>, 
+
+    // Just ref to src so we don't have to write
+    // session.borrow().src.borrow_mut() nad so on.
+    src: RcRef<S>,
+    
     curr_token: Option<Token<S>>,
 }
 
 impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     
-    pub fn new(src: Rc<RefCell<S>>, handler: Rc<RefCell<ftl_error::Handler<S>>>) -> Self {
+    pub fn new(session: RcRef<Session<S>>) -> Self {
         let mut s =  Self {
-            src,
-            handler,
+            session: session.clone(),
+            src: session.borrow().src.clone(),
             curr_token: None,
         };
         s.next();
@@ -269,7 +274,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn uknown_character_error(&mut self) {
         eprintln!("Lexer - unknown_character_error(): Error");                
-        self.handler.borrow_mut().err(
+        self.session.borrow_mut().handler.err(
             Box::new(LexingError{
                 kind: LexingErrorKind::UnknownCharacter,
                 beg: self.curr_ptr(),
@@ -279,7 +284,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn not_an_integer_error(&mut self, beg: S::Pointer) {
         eprintln!("Lexer - not_an_integer_error(): Error");                
-        self.handler.borrow_mut().err(
+        self.session.borrow_mut().handler.err(
             Box::new(LexingError{
                         kind: LexingErrorKind::NotAnInterger,
                         beg,
@@ -289,7 +294,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn integers_cannot_start_with_zero_error(&mut self, beg: S::Pointer) {
         eprintln!("Lexer - integers_cannot_start_with_zero_error(): Error");                
-        self.handler.borrow_mut().err(
+        self.session.borrow_mut().handler.err(
             Box::new(LexingError{
                     kind: LexingErrorKind::IntegersCannotStartWithZero,
                     beg,
@@ -359,21 +364,21 @@ mod tests {
     use super::*;
     use ftl_utility::assert_match;
 
+    fn make_sess_with_src(content: &str) -> RcRef<Session<ftl_source::string::String>> {
+        let src = ftl_source::string::String::from(content);
+        RcRef::new(Session::new(src))
+    }
+
     #[test]
     fn lexer_creation_from_empty_string_source() {
-        let src = ftl_source::string::String::from("");
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        Lexer::new(src, handler);
+        let sess = make_sess_with_src("");
+        Lexer::new(sess);
     }
 
     #[test]
     fn reading_first_token_from_empty_lexer() {
-        let src = ftl_source::string::String::from("");
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let l = Lexer::new(src, handler);
- 
+        let sess = make_sess_with_src("");
+        let l = Lexer::new(sess);
         assert_match!(
             l.curr(),
             None);
@@ -381,10 +386,8 @@ mod tests {
 
     #[test]
     fn reading_past_first_token_from_empty_lexer() {
-        let src = ftl_source::string::String::from("");
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler); 
+        let sess = make_sess_with_src("");
+        let mut l = Lexer::new(sess);
         assert_match!(
             l.next(),
             None);
@@ -392,11 +395,8 @@ mod tests {
 
     #[test]
     fn reading_first_token_from_just_integer_in_source() {
-        let src = ftl_source::string::String::from("123");
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let l = Lexer::new(src, handler);
- 
+        let sess = make_sess_with_src("123");
+        let l = Lexer::new(sess);
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -408,13 +408,11 @@ mod tests {
 
     #[test]
     fn skipping_comments_and_whitespaces() {
-        let src = ftl_source::string::String::from(r#"
+        let sess = make_sess_with_src(r#"
             # comment tdg d dg 
             123
         "#);
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let l = Lexer::new(src, handler);
+        let l = Lexer::new(sess);
 
         assert_match!(
             l.curr(),
@@ -427,11 +425,8 @@ mod tests {
 
     #[test]
     fn get_zero_integer_literal() {
-        let src = ftl_source::string::String::from(r#"0"#);
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let l = Lexer::new(src, handler);
- 
+        let sess = make_sess_with_src("0");
+        let l = Lexer::new(sess);
         assert_match!(
             l.curr(),
             Some(token::Token{
@@ -443,41 +438,33 @@ mod tests {
 
     #[test]
     fn error_on_integer_starting_from_zero() {
-        let src = ftl_source::string::String::from(r#"01"#);
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let _l = Lexer::new(src, handler.clone());
-        assert_match!(handler.borrow().error_msg(), Some(_));
+        let sess = make_sess_with_src("01");
+        Lexer::new(sess.clone());
+        assert_match!(sess.borrow_mut().handler.error_msg(), Some(_));
     }
 
     #[test]
     fn error_on_alpha_in_zero_literal() {
-        let src = ftl_source::string::String::from(r#"0a"#);
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let _l = Lexer::new(src, handler.clone());
-        assert_match!(handler.borrow().error_msg(), Some(_));
+        let sess = make_sess_with_src("0a");
+        Lexer::new(sess.clone());
+        assert_match!(sess.borrow_mut().handler.error_msg(), Some(_));
     }
 
     #[test]
     fn error_on_alpha_in_nonzero_literal() {
-        let src = ftl_source::string::String::from(r#"657457a"#);
-        let src = Rc::new(RefCell::new(src)); 
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let _l = Lexer::new(src, handler.clone());
-        assert_match!(handler.borrow().error_msg(), Some(_));
+        let sess = make_sess_with_src("657457a");
+        Lexer::new(sess.clone());
+        assert_match!(sess.borrow_mut().handler.error_msg(), Some(_));
     }
 
     #[test]
     fn read_multiple_integers() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         1 2 3
         5
         6
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         l.next(); l.next(); l.next(); l.next();
         assert_match!(
             l.curr(),
@@ -490,12 +477,10 @@ mod tests {
 
     #[test]
     fn read_identifiers() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         some identifiers
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         l.next(); 
         let tok = l.next().unwrap();
         assert!(match tok {
@@ -511,12 +496,10 @@ mod tests {
 
     #[test]
     fn read_keywords() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         som134e def
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         l.next(); 
         let tok = l.next().unwrap();
         assert!(match tok {
@@ -533,12 +516,10 @@ mod tests {
 
     #[test]
     fn read_identifiers_alongside_integers() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         s_242_ome 123
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         l.next(); l.next();
         assert_match!(
             l.curr(),
@@ -551,12 +532,10 @@ mod tests {
 
     #[test]
     fn read_multiple_operators() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         + - ++ -- , ()
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         assert_match!(l.next().unwrap().kind, token::Kind::Addition);
         assert_match!(l.next().unwrap().kind, token::Kind::Substraction);
         assert_match!(l.next().unwrap().kind, token::Kind::Increment);
@@ -568,12 +547,10 @@ mod tests {
 
     #[test]
     fn read_multiple_operators_with_integers_before_and_after() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         12+0 - ++ -- , ()
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         assert_match!(l.next().unwrap(),
             token::Token{
                 kind: token::Kind::IntLiteral,
@@ -593,12 +570,10 @@ mod tests {
 
     #[test]
     fn read_multiple_operators_with_identifiers_before_and_after() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         _Adfaf_+_12_ - ++ -- , ()
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
         assert_match!(l.next().unwrap().kind, token::Kind::Addition);
         assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
@@ -606,12 +581,10 @@ mod tests {
 
     #[test]
     fn read_multiple_operators_each_being_part_of_itself() {
-        let src = ftl_source::string::String::from(r#"0
+        let sess = make_sess_with_src(r#"0
         ++--+++++
         "#);
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let mut l = Lexer::new(sess);
         assert_match!(l.next().unwrap().kind, token::Kind::Increment);
         assert_match!(l.next().unwrap().kind, token::Kind::Decrement);
         assert_match!(l.next().unwrap().kind, token::Kind::Increment);
@@ -621,10 +594,8 @@ mod tests {
 
     #[test]
     fn returning_poisoned_integers() {
-        let src = ftl_source::string::String::from("0a 123");
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let sess = make_sess_with_src("0a 123");
+        let mut l = Lexer::new(sess);
         assert!(match l.curr().unwrap() {
             token::Token{
                 kind: token::Kind::Poisoned,
@@ -645,10 +616,8 @@ mod tests {
 
     #[test]
     fn returning_poisoned_integers_2() {
-        let src = ftl_source::string::String::from("123 12asdafe3");
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let sess = make_sess_with_src("123 12asdafe3");
+        let mut l = Lexer::new(sess);
         assert!(match l.next().unwrap() {
             token::Token{
                 kind: token::Kind::Poisoned,
@@ -662,10 +631,8 @@ mod tests {
 
     #[test]
     fn returning_unknown_character() {
-        let src = ftl_source::string::String::from("123 `0");
-        let src = Rc::new(RefCell::new(src));
-        let handler = Rc::new(RefCell::new(ftl_error::Handler::new(src.clone())));
-        let mut l = Lexer::new(src, handler);
+        let sess = make_sess_with_src("123 `0");
+        let mut l = Lexer::new(sess);
         assert!(match l.next().unwrap() {
             token::Token{
                 kind: token::Kind::Poisoned,

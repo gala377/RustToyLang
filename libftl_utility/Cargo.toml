@@ -1,5 +1,5 @@
 [package]
-name = "libftl_utility"
+name = "ftl_utility"
 version = "0.1.0"
 authors = ["Rafał Galczak <r.galczak@gmail.com>"]
 edition = "2018"
