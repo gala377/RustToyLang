@@ -28,8 +28,8 @@ pub struct Lexer<S: Source> {
     
     session: RcRef<Session<S>>, 
 
-    // Just ref to src so we don't have to write
-    // session.borrow().src.borrow_mut() nad so on.
+    /// Just ref to src so we don't have to write
+    /// session.borrow().src.borrow_mut() nad so on.
     src: RcRef<S>,
     
     curr_token: Option<Token<S>>,
@@ -88,7 +88,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         self.src.borrow_mut().next_char()
     }
 
-    fn curr_ptr(&self) -> S::Pointer {
+    pub fn curr_ptr(&self) -> S::Pointer {
         self.src.borrow().curr_ptr()
     }
 

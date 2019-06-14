@@ -1,50 +1,68 @@
-pub struct AST {
-    root: Program,
+use ftl_source::{
+    Span,
+    Source, 
+    Pointer,
+};
+
+pub struct AST<S: Source> {
+    root: Module<S::Pointer>,
 }
 
-type NodeId = usize;
+impl<S: Source> AST<S> {
+    pub fn new(root: Module<S::Pointer>) -> Self {
+        Self {
+            root,
+        }
+    } 
+}
 
-pub struct Program {
+pub type NodeId = usize;
+
+pub struct Module<T: Pointer> {
     pub id: NodeId,
-    pub decl: Vec<TopLevelDecl>,
+    pub decl: Vec<TopLevelDecl<T>>,
 }
 
-pub struct TopLevelDecl {
+pub struct TopLevelDecl<T: Pointer> {
     pub id: NodeId,
-    pub kind: TopLevelDeclKind,
+    pub kind: TopLevelDeclKind<T>,
+    pub span: Span<T>,
 }
 
-pub enum TopLevelDeclKind {
-    FunctionDef(FuncDef)
+pub enum TopLevelDeclKind<T: Pointer> {
+    FunctionDef(FuncDef<T>)
 }
 
-pub struct FuncDef {
+pub struct FuncDef<T: Pointer> {
     pub ty: Type, 
-    pub ident: Identifier,
-    pub args: Vec<FuncArg>,
-    pub body: Expr,
+    pub ident: Ident<T>,
+    pub args: Vec<FuncArg<T>>,
+    pub body: Expr<T>,
 }
 
-pub struct FuncArg {
+pub struct FuncArg<T: Pointer> {
     pub ty: Option<Type>,
-    pub ident: Identifier,
+    pub ident: Ident<T>,
+    pub span: Span<T>
 }
 
 
-pub struct Expr {
+pub struct Expr<T: Pointer> {
     pub id: NodeId,
-    pub kind: ExprKind,
+    pub kind: ExprKind<T>,
+    pub span: Span<T>,
 }
 
-pub enum ExprKind {
-    FunctionCall(FuncCall),
+pub enum ExprKind<T: Pointer> {
+    FunctionCall(FuncCall<T>),
     Literal(Lit),
-    Binary(BinOp, Box<Expr>, Box<Expr>),
+    Identifier(Ident<T>),
+    Binary(BinOp, Box<Expr<T>>, Box<Expr<T>>),
 }
 
-pub struct FuncCall {
-    pub func: NodeId,
-    pub args: Vec<Box<Expr>>,
+pub struct FuncCall<T: Pointer> {
+    pub ident: Ident<T>,
+    pub args: Vec<Box<Expr<T>>>,
 }
 
 pub enum Lit {
@@ -55,6 +73,16 @@ pub enum BinOp {
     Addition, 
     Substraction,
 }
+
+pub struct Ident<T: Pointer> { 
+    pub symbol: String,
+    pub span: Span<T>,
+}
+
+
+
+/// Types
+
 
 pub struct Type {
     pub kind: TypeKind,
@@ -75,7 +103,5 @@ pub enum LitType {
     Void,
 }
 
-pub struct Identifier { 
-    pub symbol: String,
-}
+
 

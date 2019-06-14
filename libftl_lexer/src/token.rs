@@ -1,7 +1,7 @@
 
 use ftl_source;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
     // General
     Identifier,
@@ -29,7 +29,7 @@ pub enum Kind {
 
 #[derive(Clone, Debug)]
 pub enum Value {
-    Integer(i64),
+    Integer(u64),
     String(std::string::String),
     None,
 }

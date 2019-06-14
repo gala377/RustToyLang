@@ -27,7 +27,7 @@ impl<S: Source> Session<S> {
         self.handler.err(err);
     }
 
-    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr=S::Pointer>>) {
+    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr=S::Pointer>>) -> ! {
         self.handler.fatal(err);
     }
 
