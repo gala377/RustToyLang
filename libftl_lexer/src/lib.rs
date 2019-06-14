@@ -274,7 +274,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn uknown_character_error(&mut self) {
         eprintln!("Lexer - unknown_character_error(): Error");                
-        self.session.borrow_mut().handler.err(
+        self.session.borrow_mut().err(
             Box::new(LexingError{
                 kind: LexingErrorKind::UnknownCharacter,
                 beg: self.curr_ptr(),
@@ -284,7 +284,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn not_an_integer_error(&mut self, beg: S::Pointer) {
         eprintln!("Lexer - not_an_integer_error(): Error");                
-        self.session.borrow_mut().handler.err(
+        self.session.borrow_mut().err(
             Box::new(LexingError{
                         kind: LexingErrorKind::NotAnInterger,
                         beg,
@@ -294,7 +294,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn integers_cannot_start_with_zero_error(&mut self, beg: S::Pointer) {
         eprintln!("Lexer - integers_cannot_start_with_zero_error(): Error");                
-        self.session.borrow_mut().handler.err(
+        self.session.borrow_mut().err(
             Box::new(LexingError{
                     kind: LexingErrorKind::IntegersCannotStartWithZero,
                     beg,
