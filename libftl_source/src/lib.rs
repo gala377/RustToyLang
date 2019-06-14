@@ -22,6 +22,11 @@ pub trait Source {
 
     /// Returns source content between two pointers.
     fn source_between(&self, begin: &Self::Pointer, end: &Self::Pointer) -> String;
+
+    /// Returns source content described by span.
+    fn source_with_span(&self, span: &Span<Self::Pointer>) -> String {
+        self.source_between(&span.beg, &span.end)
+    }
 }
 
 pub trait Pointer: Clone {
@@ -33,6 +38,15 @@ pub trait Pointer: Clone {
     /// starting from one, from the place in the source 
     /// the pointer is pointing to.
     fn position(&self) -> usize;
+}
+
+/// Represents range in source.
+#[derive(Clone, Debug)]
+pub struct Span<T: Pointer> {
+    /// Beginning of the range.
+    pub beg: T,
+    /// End of the range.
+    pub end: T,
 }
 
 pub mod tests {

@@ -1,9 +1,15 @@
 use std::error::Error;
 use std::fmt;
-use std::fmt::{Debug, Display};
+use std::fmt::{
+    Debug,
+    Display
+};
 
 use ftl_source;
-use ftl_source::Source;
+use ftl_source::{
+    Source,
+    Span,
+};
 use ftl_error;
 use ftl_error::LangError;
 use ftl_utility::RcRef;
@@ -137,8 +143,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
             _ => Some(token::Token{
                     kind: token::Kind::IntLiteral,
                     value: token::Value::Integer(0),
-                    beg , 
-                    end: self.curr_ptr(),
+                    span: Span {
+                        beg, 
+                        end: self.curr_ptr(),
+                    },
             }),
         }
     }
@@ -168,8 +176,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
             token::Token {
                 kind: token::Kind::IntLiteral,
                 value: token::Value::Integer(symbol.parse().unwrap()),
-                beg, 
-                end: self.curr_ptr(),
+                span: Span {
+                    beg, 
+                    end: self.curr_ptr(),
+                },
             }
         );
     }
@@ -190,8 +200,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         return Some(token::Token{
             kind: token::Kind::Poisoned,
             value: token::Value::String(symbol),
-            beg: beg, 
-            end: self.curr_ptr(),
+            span: Span{
+                beg: beg, 
+                end: self.curr_ptr(),
+            },
         });
     }
 
@@ -222,8 +234,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         return Some(token::Token{
                 kind,
                 value: token::Value::String(symbol), 
-                beg,
-                end: self.curr_ptr(),
+                span: Span {
+                    beg,
+                    end: self.curr_ptr(),
+                },
             });
     }
 
@@ -249,8 +263,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         Some(token::Token{
             kind: op_kind,
             value: token::Value::String(symbol),
-            beg,
-            end: self.curr_ptr(),
+            span: Span {
+                beg,
+                end: self.curr_ptr(),
+            },
         })
     }
 
@@ -267,8 +283,10 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         Some(token::Token{
             kind: token::Kind::Poisoned,
             value: token::Value::String(symbol),
-            beg: ptr.clone(),
-            end: ptr,
+            span: Span {
+                beg: ptr.clone(),
+                end: ptr,
+            },
         })
     }
 

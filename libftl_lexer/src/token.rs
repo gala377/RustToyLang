@@ -38,6 +38,5 @@ pub enum Value {
 pub struct Token<T: ftl_source::Pointer> {
     pub kind: Kind,
     pub value: Value,
-    pub beg: T,
-    pub end: T,
+    pub span: ftl_source::Span<T>,
 } 
