@@ -1,9 +1,10 @@
 [workspace]
 
 members = [
-    "lexer",
-    "cli",
-    "utility",
-    "error",
+    "libftl_lexer",
+    "libftl_cli",
+    "libftl_utility",
+    "libftl_error",
+    "libftl_session"
 ]
 

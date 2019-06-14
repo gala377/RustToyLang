@@ -1,5 +1,5 @@
 
-use source;
+use ftl_source;
 
 #[derive(Clone, Debug)]
 pub enum Kind {
@@ -35,7 +35,7 @@ pub enum Value {
 }
 
 #[derive(Clone, Debug)]
-pub struct Token<T: source::Pointer> {
+pub struct Token<T: ftl_source::Pointer> {
     pub kind: Kind,
     pub value: Value,
     pub beg: T,

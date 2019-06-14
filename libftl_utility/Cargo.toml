@@ -1,11 +1,11 @@
 [package]
-name = "toylang-source"
+name = "libftl_utility"
 version = "0.1.0"
 authors = ["Rafał Galczak <r.galczak@gmail.com>"]
 edition = "2018"
 
 [lib]
-name = "source"
+name = "ftl_utility"
 path = "src/lib.rs"
 
 

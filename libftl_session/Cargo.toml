@@ -1,0 +1,15 @@
+[package]
+name = "ftl_session"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "ftl_session"
+path = "src/lib.rs"
+
+
+[dependencies]
+libftl_utility = { path = "../libftl_utility" }
+libftl_source = { path = "../libftl_source" }
+ftl_error = { path = "../libftl_error" }

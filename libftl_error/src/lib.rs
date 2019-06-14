@@ -1,6 +1,7 @@
-use std::cell;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use source::{
+use ftl_source::{
     Source,
     Pointer,
 };
@@ -19,14 +20,14 @@ pub trait LangError {
     }
 }
 
-pub struct Handler<'a, S: Source> {
+pub struct Handler<S: Source> {
     errs: Vec<Box<dyn LangError<Ptr=S::Pointer>>>,
-    src: &'a cell::RefCell<S>,
+    src: Rc<RefCell<S>>,
 }
 
-impl<'a, S: Source> Handler<'a, S> {
+impl<S: Source> Handler<S> {
 
-    pub fn new(src: &'a cell::RefCell<S>) -> Self {
+    pub fn new(src: Rc<RefCell<S>>) -> Self {
         Self {
             errs: Vec::new(),
             src,
