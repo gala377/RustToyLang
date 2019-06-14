@@ -1,0 +1,12 @@
+[package]
+name = "ftl_source"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "ftl_source"
+path = "src/lib.rs"
+
+
+[dependencies]

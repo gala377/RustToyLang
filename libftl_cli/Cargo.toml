@@ -1,0 +1,17 @@
+[package]
+name = "ftl_cli"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "ftlc"
+path = "src/main.rs"
+
+
+[dependencies]
+ftl_lexer = { path = "../libftl_lexer" }
+ftl_error = { path = "../libftl_error" }
+ftl_source = { path = "../libftl_source" }
+ftl_utility = { path = "../libftl_utility" }
+ftl_session = { path = "../libftl_session" }

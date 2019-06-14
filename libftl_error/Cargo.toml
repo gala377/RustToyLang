@@ -1,0 +1,14 @@
+[package]
+name = "ftl_error"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "ftl_error"
+path = "src/lib.rs"
+
+
+[dependencies]
+ftl_source = { path = "../libftl_source" }
+ftl_utility = { path = "../libftl_utility" }

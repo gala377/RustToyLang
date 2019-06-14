@@ -1,0 +1,15 @@
+[package]
+name = "ftl_lexer"
+version = "0.1.0"
+authors = ["Rafał Galczak <r.galczak@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "ftl_lexer"
+path = "src/lib.rs"
+
+[dependencies]
+ftl_utility = { path = "../libftl_utility" }
+ftl_source = { path = "../libftl_source" }
+ftl_error = { path = "../libftl_error" }
+ftl_session = { path = "../libftl_session" }
