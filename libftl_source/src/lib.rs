@@ -1,5 +1,5 @@
 pub mod string;
-
+pub mod file;
 
 /// Represents source containing program source code.
 /// After creation the source should point to the 
