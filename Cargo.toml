@@ -5,6 +5,7 @@ members = [
     "libftl_cli",
     "libftl_utility",
     "libftl_error",
-    "libftl_session"
+    "libftl_session",
+    "libftl_parser"
 ]
 

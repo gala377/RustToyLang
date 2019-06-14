@@ -30,6 +30,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ftl_parser"
+version = "0.1.0"
+dependencies = [
+ "ftl_error 0.1.0",
+ "ftl_lexer 0.1.0",
+ "ftl_session 0.1.0",
+ "ftl_source 0.1.0",
+ "ftl_utility 0.1.0",
+]
+
+[[package]]
 name = "ftl_session"
 version = "0.1.0"
 dependencies = [
