@@ -1,40 +1,46 @@
 use ftl_error::LangError;
 use ftl_lexer::token::Token;
 use ftl_source::{
-    Source,
     Pointer,
+    Span,
 };
 
-pub enum ParserError<Ptr: Pointer> {
+
+pub struct ParserError<Ptr: Pointer> {
+    pub msg: String,
+    pub kind: ParserErrorKind<Ptr>,
+}
+
+pub enum ParserErrorKind<Ptr: Pointer> {
     UnexpectedToken{
         expected: Token<Ptr>,
         actual: Token<Ptr>,
     },
     TokenExpected(Token<Ptr>),
+    Msg(Span<Ptr>),
 }
 
 impl<Ptr: Pointer> LangError for ParserError<Ptr> {
 
     type Ptr = Ptr;
 
-    fn desc(&self) -> &str {
-        match *self {
-            ParserError::UnexpectedToken{ .. } => "Unexpected token",
-            ParserError::TokenExpected(ref tok) => "Token expected",
-        }
+    fn desc(&self) -> String {
+        self.msg.clone()
     }
 
     fn begin(&self) -> &Self::Ptr {
-        match *self {
-            ParserError::UnexpectedToken{ actual: ref tok, .. } => &tok.span.beg,
-            ParserError::TokenExpected(ref tok) => &tok.span.beg,
+        match self.kind {
+            ParserErrorKind::UnexpectedToken{ actual: ref tok, .. } => &tok.span.beg,
+            ParserErrorKind::TokenExpected(ref tok) => &tok.span.beg,
+            ParserErrorKind::Msg(ref span) => &span.beg,
         }
     }
 
     fn end(&self) -> &Self::Ptr {
-        match *self {
-            ParserError::UnexpectedToken{ actual: ref tok, .. } => &tok.span.end,
-            ParserError::TokenExpected(ref tok) => &tok.span.end,
+        match self.kind {
+            ParserErrorKind::UnexpectedToken{ actual: ref tok, .. } => &tok.span.end,
+            ParserErrorKind::TokenExpected(ref tok) => &tok.span.end,
+            ParserErrorKind::Msg(ref span) => &span.end,
         }
     }
 

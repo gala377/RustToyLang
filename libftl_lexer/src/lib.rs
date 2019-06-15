@@ -356,11 +356,14 @@ impl<T: ftl_source::Pointer> Display for LexingError<T> {
 impl<T: ftl_source::Pointer> LangError for LexingError<T> {
     type Ptr = T;
 
-    fn desc(&self) -> &str {
+    fn desc(&self) -> String {
         match &self.kind {
-            LexingErrorKind::IntegersCannotStartWithZero => "integers cannot start with 0",
-            LexingErrorKind::NotAnInterger => "literal is not an interger but it starts like one",
-            LexingErrorKind::UnknownCharacter(_) => "unkown character",
+            LexingErrorKind::IntegersCannotStartWithZero => 
+                String::from("integers cannot start with 0"),
+            LexingErrorKind::NotAnInterger => 
+                String::from("literal is not an interger but it starts like one"),
+            LexingErrorKind::UnknownCharacter(_) => 
+                String::from("unkown character"),
         }
     }
 

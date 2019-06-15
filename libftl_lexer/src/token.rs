@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Display;
 
 use ftl_source;
 
@@ -40,3 +42,17 @@ pub struct Token<T: ftl_source::Pointer> {
     pub value: Value,
     pub span: ftl_source::Span<T>,
 } 
+
+impl<Ptr: ftl_source::Pointer> Display for Token<Ptr> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "tok {{ kind: {:?} val: {:?}, span[{}:{} - {}:{}] }}",
+            self.kind,
+            self.value,
+            self.span.beg.line(),
+            self.span.beg.position(),
+            self.span.end.line(),
+            self.span.end.position())
+    }
+}

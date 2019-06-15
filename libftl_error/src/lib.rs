@@ -9,7 +9,7 @@ pub trait LangError {
 
     type Ptr: Pointer;
 
-    fn desc(&self) -> &str;
+    fn desc(&self) -> String;
     fn begin(&self) -> &Self::Ptr; 
     fn end(&self) -> &Self::Ptr;
 
