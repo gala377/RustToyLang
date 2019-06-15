@@ -20,7 +20,8 @@ pub enum Kind {
     Comma, 
     Increment,
     Decrement, 
-
+    Colon,
+    
     // Literals
     IntLiteral,
 

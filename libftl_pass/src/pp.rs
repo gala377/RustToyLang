@@ -1,4 +1,3 @@
-use std::fmt;
 use std::io::Write;
 use std::io;
 
@@ -36,6 +35,7 @@ impl Printer {
 
     fn add(&mut self, s: &str) {
         self.res += &self.with_indent(s);
+        self.res += "\n";
     }
 }
 
@@ -51,10 +51,11 @@ impl<P: Pointer> Pass<P> for Printer {
     }
     
     fn visit_func_def(&mut self, node: &FuncDef<P>) {
-        self.add(&format!("FuncDef {}", node.ident.symbol));
+        let mut repr = format!("FuncDef {}", node.ident.symbol);
         for arg in &node.args {
-            self.res += &format!(" {}", arg.ident.symbol);
+            repr += &format!(" {}", arg.ident.symbol);
         }
+        self.add(&repr);
         self.indent += 1;
         self.visit_expr(&node.body);
         self.indent -= 1;

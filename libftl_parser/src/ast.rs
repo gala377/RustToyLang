@@ -5,7 +5,7 @@ use ftl_source::{
 };
 
 pub struct AST<S: Source> {
-    root: Module<S::Pointer>,
+    pub root: Module<S::Pointer>,
 }
 
 impl<S: Source> AST<S> {

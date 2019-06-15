@@ -116,6 +116,18 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             Ok(args) => args,
             Err(_) => unreachable!(),
         };
+        match self.parse_token(token::Kind::Colon) {
+            Err(ParseErr::EOF) => 
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(), beg, self.curr_ptr())),
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.err(Self::unexpected_token_err(
+                    token::Kind::Colon,
+                    token::Value::None, 
+                    tok, "Colon expected".to_owned()))
+            }
+            _ => (),  
+        };
         let body = match self.parse_expr() {
             Ok(expr) => expr,
             Err(ParseErr::NotThisItem(_)) =>
@@ -223,6 +235,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         match self.lexer.curr() {
             Some(tok) => 
                 if tok.kind == kind {
+                    self.lexer.next();
                     Ok(tok)
                 } else {
                     Err(ParseErr::NotThisItem(tok))

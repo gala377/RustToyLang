@@ -15,6 +15,7 @@ pub fn is_part_of_op(ch: char) -> bool {
         ')' => true,
         ',' => true,
         '-' => true,
+        ':' => true,
         _ => false,
     }
 }
@@ -28,6 +29,7 @@ pub fn is_operator(symbol: &str) -> Option<token::Kind> {
         ")" => Some(token::Kind::RightParenthesis),
         "++" => Some(token::Kind::Increment),
         "--" => Some(token::Kind::Decrement),
+        ":" => Some(token::Kind::Colon),
         _ => None,
     }
 }

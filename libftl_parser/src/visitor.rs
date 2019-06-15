@@ -1,5 +1,8 @@
 use crate::ast::*;
-use ftl_source::Pointer;
+use ftl_source::{
+    Pointer,
+    Source,
+};
 
 pub trait Pass<P: Pointer>: Sized {
     
@@ -15,7 +18,7 @@ pub trait Pass<P: Pointer>: Sized {
         walk_func_def(self, node);
     }
     
-    fn visit_func_arg(&mut self, node: &FuncArg<P>) {
+    fn visit_func_arg(&mut self, _node: &FuncArg<P>) {
         // todo walk, when its more than just an identifier
         self.nop()
     }
@@ -53,6 +56,10 @@ pub trait Pass<P: Pointer>: Sized {
     fn nop(&mut self) {}
 }
 
+
+pub fn visit_ast<S: Source, P: Pass<S::Pointer>>(p: &mut P, ast: &AST<S>) {
+    p.visit_module(&ast.root);
+}
 
 
 pub fn walk_module<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Module<Ptr>) {

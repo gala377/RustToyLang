@@ -15,3 +15,7 @@ ftl_error = { path = "../libftl_error" }
 ftl_source = { path = "../libftl_source" }
 ftl_utility = { path = "../libftl_utility" }
 ftl_session = { path = "../libftl_session" }
+ftl_parser = { path = "../libftl_parser" }
+ftl_pass = { path = "../libftl_pass" }
+
+termion = "1"
