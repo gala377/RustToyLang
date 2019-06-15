@@ -19,3 +19,5 @@ ftl_parser = { path = "../libftl_parser" }
 ftl_pass = { path = "../libftl_pass" }
 
 termion = "1"
+simplelog = "^0.5.0"
+log = "0.4"

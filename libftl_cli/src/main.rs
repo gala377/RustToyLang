@@ -4,6 +4,7 @@ use termion::{
     style,
     color,
 };
+use simplelog::*;
 
 use ftl_source::string::String;
 use ftl_lexer::Lexer;
@@ -24,85 +25,107 @@ use ftl_pass::{
 
 
 static SOURCE: &str = r#"
-    def foo a b: 5
+    def foo a b: a + b
 
-    def bar: 3 + 5
+    def bar: 1 -
+     2 + 3 + 4 - 5 + 6(
     
-    def foo_bar: bar
+    def foo_bar: bar + 1 + 2 + foo
 "#;
 
 fn main() -> io::Result<()> {
+    init_logger(if cfg!(debug_assertions) {
+        LevelFilter::Trace
+    } else {
+        LevelFilter::Warn
+    });
     let mut out = std::io::stdout();
-    
-    print_red("\nCompilation starts...");
+    print!("\n");
+    print_red("🦊 Compilation starts...");
     print_line();    
-    print_red("Creating source and session...");
+    print_red("🦒 Creating source and session...");
     let sess = RcRef::new(Session::new(String::from(SOURCE)));
     
-    print_green("Created");
+    print_green("✔ Created");
     print_line();
-    print_red("Creating Lexer...");
+    print_red("🐿 Creating Lexer...");
     let lexer = Lexer::new(sess.clone());
     
-    print_green("Created");
+    print_green("✔ Created");
     print_line();    
 
-    print_red("Creating parser...");
+    print_red("🐊 Creating parser...");
     let mut parser = Parser::new(lexer, sess.clone());
     
-    print_green("Created");
+    print_green("✔ Created");
     print_line();
-    print_red("Creating error emitter...");
+    print_red("🦎 Creating error emitter...");
     let emmiter = Emitter::new(sess.clone());
     
-    print_green("Created");
+    print_green("✔ Created");
     print_line();
-    print_red("Creating ppp...");
+    print_red("🦂 Creating passes...");
+
+    print_red("🐌 Creating PrettyPrintPass...");
     let mut ppp = pp::Printer::new();
-    
-    print_green("Created");
+    print_green("✔ Done");
+
+    print_green("✔ All passes created");
+
+
     print_line();
-    print_red("Parsing source...");
+    print_red("🐉 Parsing source...");
     let ast = parser.parse();
     
-    print_green("Source parsed");
+    print_green("✔ Source parsed");
     print_line();
-    print_red("Printing errors...");
+    print_red("🦖 Applying passes...");
+    print_red("🦋 PrettyPrintPass...");
+    visit_ast(&mut ppp, &ast);
+    print_green("✔ Done...");
+
+
+    print_line();
+    print_red("🐺 Printing errors...");
     print_line();
     emmiter.emit_err(&mut out)?;
     print_line();
-    print_green("Done");
-    print_line();
+    print_green("✔ Done");
 
-    print_red("Walking ast with ppp...");
-    visit_ast(&mut ppp, &ast);
-    
-    print_green("Done");
     print_line();
-    print_red("Printing output to stdout...");
+    print_red("🐙 Printing PrettyPrintPass output to stdout...");
     print_line();
     ppp.write(&mut out)?;
     
     print_line();
-    print_green("Printed");
+    print_green("✔ Printed");
     print_line();
-    print_green("Done");
-    
+    print_green("✔ Done");
+    print_line();
     Ok(())
 }
 
 fn print_red(s: &str) {
-    println!("{}{}{}{}", style::Bold, color::Fg(color::Red), s, style::Reset);
+    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Red), s, style::Reset);
 }
 
 fn print_green(s: &str) {
-    println!("{}{}{}{}", style::Bold, color::Fg(color::Green), s, style::Reset);
+    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Green), s, style::Reset);
 }
 
 fn print_line() {
-    print!("\n");
+    print!("{}{}\n", style::Bold, color::Fg(color::Yellow));
     for _ in 0..100 {
         print!("=");
     }
-    print!("\n\n");
+    print!("\n\n{}", style::Reset);
+}
+
+
+fn init_logger(filter: LevelFilter) {
+    CombinedLogger::init(
+        vec![
+            TermLogger::new(filter, Config::default()).unwrap(),
+        ]
+    ).unwrap();
 }

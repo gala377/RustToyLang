@@ -13,3 +13,5 @@ ftl_utility = { path = "../libftl_utility" }
 ftl_source = { path = "../libftl_source" }
 ftl_error = { path = "../libftl_error" }
 ftl_session = { path = "../libftl_session" }
+
+log = "0.4"

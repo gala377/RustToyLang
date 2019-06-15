@@ -171,36 +171,75 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     // Expr 
 
     fn parse_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        self.parse_additive_expr()
+    }
+
+    fn parse_additive_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Ok(lit) = self.parse_lit() {
-            let end = self.curr_ptr();
-            return Ok(ast::Expr{
+        let lhs = self.parse_primary_expr()?;
+        let mut lhs = ast::Expr{
+            id: self.next_node_id(),
+            kind: lhs,
+            span: Span {
+                beg: beg.clone(),
+                end: self.curr_ptr(),
+            },
+        };
+        while let Ok(op) = self.one_of_tok(vec![
+            token::Kind::Addition,
+            token::Kind::Substraction]) 
+        {
+            let beg = self.curr_ptr();
+            let rhs = match self.parse_primary_expr() {
+                Ok(expr) => expr,
+                _ => {
+                    self.err(Self::msg_err(
+                        "Expected primary expression after + operator".to_owned(),
+                        beg, self.curr_ptr()));
+                    break;
+                }
+            };
+            lhs = ast::Expr{
                 id: self.next_node_id(),
-                kind: ast::ExprKind::Literal(lit),
                 span: Span {
-                    beg,
-                    end,
+                    beg: lhs.span.clone().beg,
+                    end: self.curr_ptr(),
                 },
-            })
+                kind: ast::ExprKind::Binary(
+                    match op.kind {
+                        token::Kind::Addition => ast::BinOp::Addition,
+                        token::Kind::Substraction => ast::BinOp::Substraction,
+                        _ => unreachable!(),
+                    },
+                    Box::new(lhs),
+                    Box::new(ast::Expr{
+                        id: self.next_node_id(),
+                        kind: rhs,
+                        span: Span{
+                            beg, 
+                            end: self.curr_ptr(),
+                        }
+                    })
+                ),
+            }
         }
-        if let Ok(id) = self.parse_ident() {
-            let end = self.curr_ptr();
-            return Ok(ast::Expr{
-                id: self.next_node_id(),
-                kind: ast::ExprKind::Identifier(id),
-                span: Span {
-                    beg,
-                    end,
-                },
-            })
-        }
-        match self.lexer.curr() {
-            Some(tok) => Err(ParseErr::NotThisItem(tok)),
-            None => Err(ParseErr::EOF),
-        }
+        Ok(lhs)
     }
 
     // Primary expr
+
+    fn parse_primary_expr(&mut self) -> PRes<ast::ExprKind<S::Pointer>, S::Pointer> {
+        if let Ok(ident) = self.parse_ident() {
+            return Ok(ast::ExprKind::Identifier(ident));
+        }
+        if let Ok(lit) = self.parse_lit() {
+            return Ok(ast::ExprKind::Literal(lit));
+        }
+        match self.lexer.curr() {
+            None => Err(ParseErr::EOF),
+            Some(tok) => Err(ParseErr::NotThisItem(tok)),
+        }
+    }
 
     fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
         let tok = self.parse_token(token::Kind::Identifier)?;
@@ -248,6 +287,18 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let tmp = self.node_id;
         self.node_id += 1;
         tmp
+    }
+
+    fn one_of_tok(&mut self, kinds: Vec<token::Kind>) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+        for k in kinds {
+            if let ret @ Ok(_) = self.parse_token(k) {
+                return ret;
+            }
+        }
+        match self.lexer.curr() {
+            None => Err(ParseErr::EOF),
+            Some(tok) => Err(ParseErr::NotThisItem(tok)),
+        }
     }
 
     // Delegations

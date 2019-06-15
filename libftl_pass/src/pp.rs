@@ -1,6 +1,8 @@
 use std::io::Write;
 use std::io;
 
+use std::collections::BTreeSet;
+
 use ftl_parser::visitor::*;
 use ftl_parser::ast::*;
 
@@ -10,6 +12,7 @@ pub struct Printer {
     res: String,
 
     indent: usize,
+    draw_line_at_indent: BTreeSet<usize>
 }
 
 impl Printer {
@@ -18,6 +21,7 @@ impl Printer {
         Printer{ 
             res: String::new(),
             indent: 0,
+            draw_line_at_indent: BTreeSet::new(),
         }
     }
 
@@ -27,9 +31,17 @@ impl Printer {
 
     fn with_indent(&self, s: &str) -> String {
         let mut res = String::new();
-        for _ in 0..self.indent {
-            res += "\t";
+        for i in 0..self.indent {
+            res += "        ";
+            res += if self.draw_line_at_indent.contains(&i) {
+                "║"
+            } else {
+                " "
+            }
+            
         }
+        res.pop();
+        res += "╚═════>";
         format!("{}{}", res, s)
     }
 
@@ -37,14 +49,36 @@ impl Printer {
         self.res += &self.with_indent(s);
         self.res += "\n";
     }
-}
+
+    fn start_line(&mut self) {
+        self.draw_line_at_indent.insert(self.indent);
+    }
+
+    #[allow(dead_code)]
+    fn start_line_at(&mut self, indent: usize) {
+        self.draw_line_at_indent.insert(indent);
+    }
+
+    fn stop_line(&mut self) {
+        self.draw_line_at_indent.remove(&self.indent);
+    }
+
+    fn stop_line_at(&mut self, indent: usize) {
+        self.draw_line_at_indent.remove(&indent);
+    }
+
+ }
 
 impl<P: Pointer> Pass<P> for Printer {
 
     fn visit_module(&mut self, node: &Module<P>) {
         self.add("Module");
+        self.start_line();
         self.indent += 1;
-        for decl in &node.decl {
+        for (i, decl) in node.decl.iter().enumerate() {
+            if i == node.decl.len()-1 {
+                self.stop_line_at(self.indent-1);
+            }
             self.visit_top_level_decl(decl);
         }
         self.indent -= 1;
@@ -68,18 +102,22 @@ impl<P: Pointer> Pass<P> for Printer {
     
     fn visit_bin_addition(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
         self.add("AddExpr");
+        self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
         walk_expr(self, rhs);
         self.indent -= 1;
+        self.stop_line();
     }
 
     fn visit_bin_substraction(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
         self.add("SubExpr");
+        self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
         walk_expr(self, rhs);
         self.indent -= 1;
+        self.stop_line();
     }
     
     fn visit_int_lit(&mut self, val: u64) {

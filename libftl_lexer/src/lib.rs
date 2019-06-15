@@ -5,6 +5,10 @@ use std::fmt::{
     Display
 };
 
+use log::{
+    trace,
+};
+
 use ftl_source;
 use ftl_source::{
     Source,
@@ -53,18 +57,18 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
 
     pub fn next(&mut self) -> Option<Token<S>> {
-        eprintln!("Lexer - next(): Getting curr char from src");
+        trace!("next(): Getting curr char from src");
         let mut opt = self.curr_char();
         while let Some(ch) = opt {
-            eprintln!("Lexer - next(): Its Some(_)");
+            trace!("next(): Its Some(_)");
             if ch == '#' || ch.is_whitespace() || ch == '\n' {
-                eprintln!("Lexer - next(): Whitespace or newline, skipping");                
+                trace!("next(): Whitespace or newline, skipping");                
                 self.skip_whitespaces();
                 self.skip_comments();
-                eprintln!("Lexer - next(): Skipped, taking next char");                
+                trace!("next(): Skipped, taking next char");                
                 opt = self.curr_char();
             } else {
-                eprintln!("Lexer - next(): Valid character");                
+                trace!("next(): Valid character");                
                 break; 
             }
         }
@@ -76,7 +80,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
             _ => None, 
         };
         self.curr_token = tok;
-        eprintln!("Lexer - next(): Returning token");                
+        trace!("next(): Returning token");                
         return self.curr();
     }
 
@@ -115,12 +119,12 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn collect_integer(&mut self) -> Option<Token<S>> {
-        eprintln!("Lexer - collect_integer(): collecting integer");                
+        trace!("collect_integer(): collecting integer");                
         if let Some('0') = self.curr_char() {
-            eprintln!("Lexer - collect_integer(): It's 0 literal");                
+            trace!("collect_integer(): It's 0 literal");                
             return self.collect_integer_zero_literal();
         }
-        eprintln!("Lexer - collect_integer(): None 0 literal");                
+        trace!("collect_integer(): None 0 literal");                
         return self.collect_non_zero_integer_literal();
     }
 
@@ -128,14 +132,14 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         let beg = self.curr_ptr();
         match self.next_char() {
             Some(ch) if ch.is_digit(10) => {
-                eprintln!("Lexer - collect_integer_zero_literal(): Integer starting with 0 error");                
+                trace!("collect_integer_zero_literal(): Integer starting with 0 error");                
                 self.integers_cannot_start_with_zero_error(beg.clone());
                 let symbol = String::from("0");
                 return self.collect_poisoned_integer(symbol, beg);
 
             },
             Some(ch) if ch.is_alphabetic() => {
-                eprintln!("Lexer - collect_integer_zero_literal(): {} is not an integer", ch);                                
+                trace!("collect_integer_zero_literal(): {} is not an integer", ch);                                
                 self.not_an_integer_error(beg.clone());
                 let symbol = String::from("0");
                 return self.collect_poisoned_integer(symbol, beg);
@@ -153,25 +157,25 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn collect_non_zero_integer_literal(&mut self)  -> Option<Token<S>> {
         let mut symbol = String::new();
-        println!("Lexer - collect_non_zero_integer_literal(): collecting integer");                
+        trace!("collect_non_zero_integer_literal(): collecting integer");                
 
         symbol.push(self.curr_char().unwrap());
-        println!("Lexer - collect_non_zero_integer_literal(): symbol is {}", symbol);                
+        trace!("collect_non_zero_integer_literal(): symbol is {}", symbol);                
         let beg = self.curr_ptr();
 
         while let Some(ch) = self.next_char() {
-            println!("Lexer - collect_non_zero_integer_literal(): character is {}", ch);                
+            trace!("collect_non_zero_integer_literal(): character is {}", ch);                
             match ch {
                 ch if ch.is_digit(10) => symbol.push(ch),
                 ch if ch.is_alphabetic() => {
-                    println!("Lexer - collect_non_zero_integer_literal(): not an integer");                
+                    trace!("collect_non_zero_integer_literal(): not an integer");                
                     self.not_an_integer_error(beg.clone());
                     return self.collect_poisoned_integer(symbol, beg);
                 }
                 _ => break,
             }
         }
-        println!("Lexer - collect_non_zero_integer_literal(): collected integer {}", symbol);                
+        trace!("collect_non_zero_integer_literal(): collected integer {}", symbol);                
         return Some(
             token::Token {
                 kind: token::Kind::IntLiteral,
@@ -208,29 +212,29 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn collect_identifier(&mut self) -> Option<Token<S>> {
-        eprintln!("Lexer - collect_identifier(): collecting identifier");                
+        trace!("collect_identifier(): collecting identifier");                
         let mut symbol = String::new();
-        eprintln!("Lexer - collect_identifier(): unwraping curr_char");                
+        trace!("collect_identifier(): unwraping curr_char");                
         symbol.push(self.curr_char().unwrap());
         let beg = self.curr_ptr();
         while let Some(ch) = self.next_char() {
-            eprintln!("Lexer - collect_identifier(): curr_char {}", ch);                
+            trace!("collect_identifier(): curr_char {}", ch);                
             if !helpers::is_part_of_ident(ch) {
-            eprintln!("Lexer - collect_identifier(): char {} is not part of an ident", ch);                
+            trace!("collect_identifier(): char {} is not part of an ident", ch);                
                 break;
             }
-            eprintln!("Lexer - collect_identifier(): adding char to symbol");                
+            trace!("collect_identifier(): adding char to symbol");                
             symbol.push(ch);
-            eprintln!("Lexer - collect_identifier(): curr symbol {}", symbol);                
+            trace!("collect_identifier(): curr symbol {}", symbol);                
         }
 
         let mut kind = token::Kind::Identifier;
         if let Some(k_kind) = helpers::is_keyword(&symbol) {
-            eprintln!("Lexer - collect_identifier(): {} is a keyword", symbol);                
+            trace!("collect_identifier(): {} is a keyword", symbol);                
             kind = k_kind;
         
         }
-        eprintln!("Lexer - collect_identifier(): returning token");                        
+        trace!("collect_identifier(): returning token");                        
         return Some(token::Token{
                 kind,
                 value: token::Value::String(symbol), 
@@ -242,24 +246,24 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn collect_operator(&mut self) -> Option<Token<S>> {
-        eprintln!("Lexer - collect_operator(): collecting operator");                
+        trace!("collect_operator(): collecting operator");                
         let mut symbol = String::new();
-        eprintln!("Lexer - collect_operator(): unwraping curr_char");                
+        trace!("collect_operator(): unwraping curr_char");                
         symbol.push(self.curr_char().unwrap());
         let beg = self.curr_ptr();
         let mut op_kind = token::Kind::Comma; // it doesn't matter really
         while let Some(kind) = helpers::is_operator(&symbol) {
-            eprintln!("Lexer - collect_operator(): Symbol {} is an operator", symbol);                
+            trace!("collect_operator(): Symbol {} is an operator", symbol);                
             op_kind = kind;
             match self.next_char() {
                 Some(ch) => symbol.push(ch),
                 None => symbol.push('\0'),
             }
-            eprintln!("Lexer - collect_operator(): Curr symbol {}", symbol);                
+            trace!("collect_operator(): Curr symbol {}", symbol);                
         }
-        eprintln!("Lexer - collect_operator(): Popping last character");                
+        trace!("collect_operator(): Popping last character");                
         symbol.pop();
-        eprintln!("Lexer - collect_operator(): Returning operator");                
+        trace!("collect_operator(): Returning operator");                
         Some(token::Token{
             kind: op_kind,
             value: token::Value::String(symbol),
@@ -272,7 +276,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
 
     fn collect_char(&mut self) -> Option<Token<S>>{
         let ch = self.curr_char().unwrap();
-        eprintln!("Lexer - next(): Unknown character, returning None");                
+        trace!("next(): Unknown character, returning None");                
         self.unknown_character_error();
         let mut symbol = String::new();
         symbol.push(ch);
@@ -291,7 +295,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn unknown_character_error(&mut self) {
-        eprintln!("Lexer - unknown_character_error(): Error");                
+        trace!("unknown_character_error(): Error");                
         self.session.borrow_mut().err(
             Box::new(LexingError{
                 kind: LexingErrorKind::UnknownCharacter(self.curr_char().unwrap()),
@@ -301,7 +305,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn not_an_integer_error(&mut self, beg: S::Pointer) {
-        eprintln!("Lexer - not_an_integer_error(): Error");                
+        trace!("not_an_integer_error(): Error");                
         self.session.borrow_mut().err(
             Box::new(LexingError{
                         kind: LexingErrorKind::NotAnInterger,
@@ -311,7 +315,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
     }
 
     fn integers_cannot_start_with_zero_error(&mut self, beg: S::Pointer) {
-        eprintln!("Lexer - integers_cannot_start_with_zero_error(): Error");                
+        trace!("integers_cannot_start_with_zero_error(): Error");                
         self.session.borrow_mut().err(
             Box::new(LexingError{
                     kind: LexingErrorKind::IntegersCannotStartWithZero,
@@ -622,7 +626,7 @@ mod tests {
                 kind: token::Kind::Poisoned,
                 value: token::Value::String(ref s),
                 ..} => {
-                println!("Symbol is: {}", s);
+                trace!("Symbol is: {}", s);
                 s == "0a"
             },
             _ => false,

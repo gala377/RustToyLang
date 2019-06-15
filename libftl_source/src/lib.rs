@@ -1,3 +1,5 @@
+use log::info;
+
 pub mod string;
 pub mod file;
 
@@ -54,29 +56,29 @@ pub mod tests {
     use super::*;
 
     pub fn source_tests<T: Source>(creator: &dyn Fn(&str) -> T) {
-        eprintln!("subtest source::tests::string_source_from_empty_str");
+        info!("subtest source::tests::string_source_from_empty_str");
         string_source_from_empty_str(creator);
-        eprintln!("subtest source::tests::reading_1st_character_from_source");
+        info!("subtest source::tests::reading_1st_character_from_source");
         reading_1st_character_from_source(creator);
-        eprintln!("subtest source::tests::reading_past_empty_source_1");
+        info!("subtest source::tests::reading_past_empty_source_1");
         reading_past_empty_source_1(creator);
-        eprintln!("subtest source::tests::reading_past_empty_source_2");
+        info!("subtest source::tests::reading_past_empty_source_2");
         reading_past_empty_source_2(creator);
-        eprintln!("subtest source::tests::reading_all_characters_from_source");
+        info!("subtest source::tests::reading_all_characters_from_source");
         reading_all_characters_from_source(creator);
-        eprintln!("subtest source::tests::reading_new_line");
+        info!("subtest source::tests::reading_new_line");
         reading_new_line(creator);
-        eprintln!("subtest source::tests::reading_past_line");
+        info!("subtest source::tests::reading_past_line");
         reading_past_line(creator);
-        eprintln!("subtest source::tests::new_line_at_the_end_of_source");
+        info!("subtest source::tests::new_line_at_the_end_of_source");
         new_line_at_the_end_of_source(creator);
-        eprintln!("subtest source::tests::reading_white_spaces");
+        info!("subtest source::tests::reading_white_spaces");
         reading_white_spaces(creator);
-        eprintln!("subtest source::tests::reading_multiple_times_past_the_end_of_file");
+        info!("subtest source::tests::reading_multiple_times_past_the_end_of_file");
         reading_multiple_times_past_the_end_of_file(creator);
-        eprintln!("subtest source::tests::getting_all_source_with_two_ptr");
+        info!("subtest source::tests::getting_all_source_with_two_ptr");
         getting_all_source_with_two_ptr(creator);
-        eprintln!("subtest source::tests::getting_source_fragment_with_two_ptr");
+        info!("subtest source::tests::getting_source_fragment_with_two_ptr");
         getting_source_fragment_with_two_ptr(creator);
     }
 
