@@ -34,7 +34,7 @@ pub enum TopLevelDeclKind<T: Pointer> {
 }
 
 pub struct FuncDef<T: Pointer> {
-    pub ty: Type, 
+    pub ty: Option<Type>, // for now, we dont have infering yet 
     pub ident: Ident<T>,
     pub args: Vec<FuncArg<T>>,
     pub body: Expr<T>,
@@ -61,7 +61,7 @@ pub enum ExprKind<T: Pointer> {
 }
 
 pub struct FuncCall<T: Pointer> {
-    pub ident: Ident<T>,
+    pub lhs: Box<Expr<T>>,
     pub args: Vec<Box<Expr<T>>>,
 }
 

@@ -13,6 +13,7 @@ use ftl_error::LangError;
 
 pub mod ast;
 pub mod errors;
+pub mod visitor;
 
 type PRes<T, P> = Result<T, ParseErr<P>>;
 
@@ -29,6 +30,9 @@ pub struct Parser<S: Source> {
 
 impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
+    //
+    // Public interface 
+    //
 
     pub fn new(lexer: Lexer<S>, sess: RcRef<Session<S>>) -> Self {
         Self {
@@ -45,7 +49,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
-
+    //
+    // Parsing methods
+    //
 
     fn parse_module(&mut self) -> PRes<ast::Module<S::Pointer>, S::Pointer> {
         let mut module = ast::Module{ id: self.next_node_id(), decl: Vec::new() };
@@ -65,6 +71,8 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
+    // Top level decl
+
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
         let func_def = self.parse_func_decl()?;
@@ -79,12 +87,14 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         })
     }
 
+    // Function
+
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
         if let Err(err) = self.parse_token(token::Kind::FuncDef) {
             return Err(err);
         }
-        let id = match self.parse_ident() {
+        let ident = match self.parse_ident() {
             Ok(id) => id,
             Err(ParseErr::NotThisItem(tok)) => {
                 self.fatal(Self::unexpected_token_err(
@@ -102,12 +112,83 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                 ));
             }
         };
-
-        // TODO - parse func args
-        // TODO - parse func body (parse_expr)
-
-        unimplemented!()
+        let args = match self.parse_func_args() {
+            Ok(args) => args,
+            Err(_) => unreachable!(),
+        };
+        let body = match self.parse_expr() {
+            Ok(expr) => expr,
+            Err(ParseErr::NotThisItem(_)) =>
+                self.fatal(Self::msg_err(
+                    "Function needs a body definition".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                )),
+            Err(ParseErr::EOF) =>
+                self.fatal(Self::msg_err(
+                        "End of file reached".to_owned(),
+                        beg,
+                        self.curr_ptr()
+                    )),
+        };
+        Ok(ast::FuncDef{
+            ident,
+            args,
+            body,
+            ty: None,
+        })
     }
+
+    fn parse_func_args(&mut self) -> PRes<Vec<ast::FuncArg<S::Pointer>>, S::Pointer> {
+        // TODO - For now no type, comma or parenthesis support
+        let mut args = Vec::new();
+        while let Ok(ident) = self.parse_ident() {
+            args.push(
+                ast::FuncArg{
+                    ty: None,
+                    span: Span{
+                        beg: ident.span.clone().beg,
+                        end: ident.span.clone().end,
+                    },
+                    ident: ident,
+                });
+        }
+        Ok(args)
+    }
+
+    // Expr 
+
+    fn parse_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
+        if let Ok(lit) = self.parse_lit() {
+            let end = self.curr_ptr();
+            return Ok(ast::Expr{
+                id: self.next_node_id(),
+                kind: ast::ExprKind::Literal(lit),
+                span: Span {
+                    beg,
+                    end,
+                },
+            })
+        }
+        if let Ok(id) = self.parse_ident() {
+            let end = self.curr_ptr();
+            return Ok(ast::Expr{
+                id: self.next_node_id(),
+                kind: ast::ExprKind::Identifier(id),
+                span: Span {
+                    beg,
+                    end,
+                },
+            })
+        }
+        match self.lexer.curr() {
+            Some(tok) => Err(ParseErr::NotThisItem(tok)),
+            None => Err(ParseErr::EOF),
+        }
+    }
+
+    // Primary expr
 
     fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
         let tok = self.parse_token(token::Kind::Identifier)?;
@@ -121,6 +202,12 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
+    // Literals
+
+    fn parse_lit(&mut self) -> PRes<ast::Lit, S::Pointer> {
+        self.parse_int_lit()
+    }
+
     fn parse_int_lit(&mut self) -> PRes<ast::Lit, S::Pointer> {
         let tok = self.parse_token(token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
@@ -129,6 +216,8 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             unreachable!();
         }
     }
+
+    // Helpers 
 
     fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         match self.lexer.curr() {
@@ -148,6 +237,8 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         tmp
     }
 
+    // Delegations
+
     pub fn curr_ptr(&self) -> S::Pointer {
         self.lexer.curr_ptr()
     }
@@ -160,6 +251,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         self.sess.borrow_mut().fatal(err)
     }
 
+    // Errors
+
+    #[allow(dead_code)]
     fn token_expected_err(
         kind: token::Kind,
         value: token::Value,
@@ -216,6 +310,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         );
         err
     }
+
 }
 
 pub enum ParseErr<P: ftl_source::Pointer> {
