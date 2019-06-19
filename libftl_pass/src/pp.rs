@@ -58,7 +58,8 @@ impl Printer {
     fn start_line_at(&mut self, indent: usize) {
         self.draw_line_at_indent.insert(indent);
     }
-
+    
+    #[allow(dead_code)]
     fn stop_line(&mut self) {
         self.draw_line_at_indent.remove(&self.indent);
     }
@@ -105,9 +106,9 @@ impl<P: Pointer> Pass<P> for Printer {
         self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
+        self.start_line_at(self.indent-1);
         walk_expr(self, rhs);
         self.indent -= 1;
-        self.stop_line();
     }
 
     fn visit_func_call(&mut self, node: &FuncCall<P>) {
@@ -115,11 +116,13 @@ impl<P: Pointer> Pass<P> for Printer {
         self.start_line();
         self.indent += 1;
         walk_expr(self, &node.lhs);
-        for arg in &node.args {
+        for (i, arg) in node.args.iter().enumerate() {
+            if i == node.args.len()-1 {
+                self.stop_line_at(self.indent-1);
+            }
             walk_expr(self, arg);
         }
         self.indent -= 1;
-        self.stop_line();
     }
 
     fn visit_bin_expr(&mut self, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
@@ -127,18 +130,16 @@ impl<P: Pointer> Pass<P> for Printer {
         self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
+        self.stop_line_at(self.indent-1);
         walk_expr(self, rhs);
         self.indent -= 1;
-        self.stop_line();
     }
 
     fn visit_parenthesed(&mut self, node: &Expr<P>) {
         self.add("Parenthesed");
-        self.start_line();
         self.indent += 1;
         walk_expr(self, node);
         self.indent -= 1;
-        self.stop_line();
     }
 
     fn visit_int_lit(&mut self, val: u64) {
