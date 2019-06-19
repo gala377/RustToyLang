@@ -29,7 +29,7 @@ static SOURCE: &str = r#"
 
     def bar: 1 -- 2 <=> 3 `foo_bar 4 $ 5 % 0
     
-    def foo_bar: @bar + 1 + 2 + @foo 3 (2+2*2) $ 2
+    def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
 "#;
 
 fn main() -> io::Result<()> {
