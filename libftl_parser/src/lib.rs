@@ -171,10 +171,10 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     // Expr 
 
     fn parse_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        self.parse_additive_expr()
+        self.parse_infix_expr()
     }
 
-    fn parse_additive_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_infix_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
         let lhs = self.parse_primary_expr()?;
         let mut lhs = ast::Expr{
@@ -186,18 +186,22 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             },
         };
         while let Ok(op) = self.one_of_tok(vec![
-            token::Kind::Addition,
-            token::Kind::Substraction]) 
+            token::Kind::InfixIdent,
+            token::Kind::Operator]) 
         {
             let beg = self.curr_ptr();
             let rhs = match self.parse_primary_expr() {
                 Ok(expr) => expr,
                 _ => {
                     self.err(Self::msg_err(
-                        "Expected primary expression after + operator".to_owned(),
+                        "Expected primary expression after operator or infox call".to_owned(),
                         beg, self.curr_ptr()));
                     break;
                 }
+            };
+            let sym = match op.value {
+                token::Value::String(s) => s,
+                _ => unreachable!(),
             };
             lhs = ast::Expr{
                 id: self.next_node_id(),
@@ -207,8 +211,16 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                 },
                 kind: ast::ExprKind::Binary(
                     match op.kind {
-                        token::Kind::Addition => ast::BinOp::Addition,
-                        token::Kind::Substraction => ast::BinOp::Substraction,
+                        token::Kind::InfixIdent => ast::BinOp::Ident(
+                            ast::Ident{
+                                symbol: sym,
+                                span: op.span,
+                        }),
+                        token::Kind::Operator => ast::BinOp::Op(
+                            ast::Op {
+                                symbol: sym,
+                                span: op.span,
+                        }),
                         _ => unreachable!(),
                     },
                     Box::new(lhs),

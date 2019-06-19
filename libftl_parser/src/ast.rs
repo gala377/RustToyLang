@@ -57,7 +57,7 @@ pub enum ExprKind<T: Pointer> {
     FunctionCall(FuncCall<T>),
     Literal(Lit),
     Identifier(Ident<T>),
-    Binary(BinOp, Box<Expr<T>>, Box<Expr<T>>),
+    Binary(BinOp<T>, Box<Expr<T>>, Box<Expr<T>>),
 }
 
 pub struct FuncCall<T: Pointer> {
@@ -69,9 +69,14 @@ pub enum Lit {
     Int(u64),
 }
 
-pub enum BinOp {
-    Addition, 
-    Substraction,
+pub enum BinOp<T: Pointer> {
+    Ident(Ident<T>),
+    Op(Op<T>),
+}
+
+pub struct Op<T: Pointer> {
+    pub symbol: String,
+    pub span: Span<T>,
 }
 
 pub struct Ident<T: Pointer> { 

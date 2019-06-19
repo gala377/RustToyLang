@@ -76,6 +76,7 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
             Some(ch) if ch.is_digit(10) => self.collect_integer(),
             Some(ch) if helpers::is_beg_of_ident(ch) => self.collect_identifier(),
             Some(ch) if helpers::is_part_of_op(ch) => self.collect_operator(),
+            Some(ch) if ch == '`' => self.collect_infix(),
             Some(_) => self.collect_char(),
             _ => None, 
         };
@@ -251,27 +252,39 @@ impl<S> Lexer<S> where S: Source, S::Pointer: 'static {
         trace!("collect_operator(): unwraping curr_char");                
         symbol.push(self.curr_char().unwrap());
         let beg = self.curr_ptr();
-        let mut op_kind = token::Kind::Comma; // it doesn't matter really
-        while let Some(kind) = helpers::is_operator(&symbol) {
-            trace!("collect_operator(): Symbol {} is an operator", symbol);                
-            op_kind = kind;
-            match self.next_char() {
-                Some(ch) => symbol.push(ch),
-                None => symbol.push('\0'),
+        while let Some(ch) = self.next_char() {
+            trace!("collect_operator(): curr_char {}", ch);                
+            if !helpers::is_part_of_op(ch) {
+                trace!("collect_operator(): char {} is not part of an operator", ch);                
+                break;
             }
-            trace!("collect_operator(): Curr symbol {}", symbol);                
+            trace!("collect_operator(): adding char to symbol");                
+            symbol.push(ch);
+            trace!("collect_operator(): curr symbol {}", symbol);                
         }
-        trace!("collect_operator(): Popping last character");                
-        symbol.pop();
         trace!("collect_operator(): Returning operator");                
         Some(token::Token{
-            kind: op_kind,
+            kind: if let Some(kind) = helpers::is_operator(&symbol) {
+                kind
+            } else {
+                token::Kind::Operator
+            },
             value: token::Value::String(symbol),
             span: Span {
                 beg,
                 end: self.curr_ptr(),
             },
         })
+    }
+
+    fn collect_infix(&mut self) -> Option<Token<S>> {
+        self.next_char();
+        if let Some(mut tok) = self.collect_identifier() {
+            tok.kind = token::Kind::InfixIdent;
+            Some(tok)
+        } else {
+            None
+        }
     }
 
     fn collect_char(&mut self) -> Option<Token<S>>{
@@ -558,13 +571,13 @@ mod tests {
     #[test]
     fn read_multiple_operators() {
         let sess = make_sess_with_src(r#"0
-        + - ++ -- , ()
+        + - ++ -- , ( )
         "#);
         let mut l = Lexer::new(sess);
-        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
-        assert_match!(l.next().unwrap().kind, token::Kind::Substraction);
-        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().kind, token::Kind::Decrement);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
         assert_match!(l.next().unwrap().kind, token::Kind::Comma);
         assert_match!(l.next().unwrap().kind, token::Kind::LeftParenthesis);
         assert_match!(l.next().unwrap().kind, token::Kind::RightParenthesis);
@@ -583,7 +596,7 @@ mod tests {
                 ..
             }
         );
-        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
         assert_match!(l.next().unwrap(),
             token::Token{
                 kind: token::Kind::IntLiteral,
@@ -600,7 +613,7 @@ mod tests {
         "#);
         let mut l = Lexer::new(sess);
         assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
-        assert_match!(l.next().unwrap().kind, token::Kind::Addition);
+        assert_match!(l.next().unwrap().kind, token::Kind::Operator);
         assert_match!(l.next().unwrap().kind, token::Kind::Identifier);
     }
 
@@ -610,11 +623,16 @@ mod tests {
         ++--+++++
         "#);
         let mut l = Lexer::new(sess);
-        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().kind, token::Kind::Decrement);
-        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().kind, token::Kind::Increment);
-        assert_match!(l.next().unwrap().kind, token::Kind::Addition);        
+        assert!(match l.next().unwrap() {
+            token::Token{
+                kind: token::Kind::Operator,
+                value: token::Value::String(ref s),
+                ..} => {
+                trace!("Symbol is: {}", s);
+                s == "++--+++++"
+            },
+            _ => false,
+        });      
     }
 
     #[test]
@@ -656,16 +674,47 @@ mod tests {
 
     #[test]
     fn returning_unknown_character() {
-        let sess = make_sess_with_src("123 `0");
+        let sess = make_sess_with_src("123 😁0");
         let mut l = Lexer::new(sess);
         assert!(match l.next().unwrap() {
             token::Token{
                 kind: token::Kind::Poisoned,
                 value: token::Value::String(ref s),
                 ..} => {
-                s == "`"
+                s == "😁"
             },
             _ => false,
         });
+    }
+
+    #[test]
+    fn returning_infix_ident() {
+        let sess = make_sess_with_src("123 `abc 123");
+        let mut l = Lexer::new(sess);
+        assert_match!(
+            l.curr().unwrap(), 
+            token::Token {
+                kind: token::Kind::IntLiteral,
+                value: token::Value::Integer(123),
+                ..
+            }
+        );
+        assert!(match l.next().unwrap() {
+            token::Token{
+                kind: token::Kind::InfixIdent,
+                value: token::Value::String(ref s),
+                ..} => {
+                s == "abc"
+            },
+            _ => false,
+        });
+        assert_match!(
+            l.next().unwrap(), 
+            token::Token {
+                kind: token::Kind::IntLiteral,
+                value: token::Value::Integer(123),
+                ..
+            }
+        );
     }
 }

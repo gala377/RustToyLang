@@ -27,8 +27,7 @@ use ftl_pass::{
 static SOURCE: &str = r#"
     def foo a b: a + b
 
-    def bar: 1 -
-     2 + 3 + 4 - 5 + 6(
+    def bar: 1 -- 2 <=> 3 `foo_bar 4 $ 5 % 0
     
     def foo_bar: bar + 1 + 2 + foo
 "#;

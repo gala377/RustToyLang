@@ -7,7 +7,9 @@ use ftl_source;
 pub enum Kind {
     // General
     Identifier,
+    InfixIdent,
     Comment, 
+    Operator,
 
     // Keywords
     FuncDef,
@@ -15,11 +17,7 @@ pub enum Kind {
     // Operators
     LeftParenthesis,
     RightParenthesis,
-    Addition, 
-    Substraction,
     Comma, 
-    Increment,
-    Decrement, 
     Colon,
     
     // Literals

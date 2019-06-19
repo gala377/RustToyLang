@@ -27,12 +27,14 @@ pub trait Pass<P: Pointer>: Sized {
         walk_expr(self, node);
     }
     
-    fn visit_bin_addition(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
+    fn visit_infix_func_call(&mut self, ident: &Ident<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
+        self.visit_ident(ident);
         walk_expr(self, lhs);
         walk_expr(self, rhs);
     }
 
-    fn visit_bin_substraction(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
+    fn visit_bin_expr(&mut self, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
+        self.visit_op(op);
         walk_expr(self, lhs);
         walk_expr(self, rhs);
     }
@@ -50,6 +52,10 @@ pub trait Pass<P: Pointer>: Sized {
     }
 
     fn visit_ident(&mut self, _node: &Ident<P>) {
+        self.nop()
+    }
+
+    fn visit_op(&mut self, _node: &Op<P>) {
         self.nop()
     }
 
@@ -98,8 +104,8 @@ pub fn walk_expr<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Expr<Ptr>) {
         },
         ExprKind::Binary(ref op, ref lhs, ref rhs) => {
             match op {
-                BinOp::Addition => v.visit_bin_addition(lhs, rhs),
-                BinOp::Substraction => v.visit_bin_substraction(lhs, rhs),
+                BinOp::Ident(ref ident) => v.visit_infix_func_call(ident, lhs, rhs),
+                BinOp::Op(ref op) => v.visit_bin_expr(op, lhs, rhs),
             }
         },
     }

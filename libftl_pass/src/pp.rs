@@ -100,8 +100,8 @@ impl<P: Pointer> Pass<P> for Printer {
         walk_expr(self, node);
     }
     
-    fn visit_bin_addition(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.add("AddExpr");
+    fn visit_infix_func_call(&mut self, ident: &Ident<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
+        self.add(&format!("InfCall {}", ident.symbol));
         self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
@@ -110,8 +110,9 @@ impl<P: Pointer> Pass<P> for Printer {
         self.stop_line();
     }
 
-    fn visit_bin_substraction(&mut self, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.add("SubExpr");
+
+    fn visit_bin_expr(&mut self, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
+        self.add(&format!("BinOp {}", op.symbol));
         self.start_line();
         self.indent += 1;
         walk_expr(self, lhs);
@@ -119,6 +120,7 @@ impl<P: Pointer> Pass<P> for Printer {
         self.indent -= 1;
         self.stop_line();
     }
+
     
     fn visit_int_lit(&mut self, val: u64) {
         self.add(&format!("Int: {}", val))
