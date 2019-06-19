@@ -110,6 +110,17 @@ impl<P: Pointer> Pass<P> for Printer {
         self.stop_line();
     }
 
+    fn visit_func_call(&mut self, node: &FuncCall<P>) {
+        self.add(&format!("FuncCall"));
+        self.start_line();
+        self.indent += 1;
+        walk_expr(self, &node.lhs);
+        for arg in &node.args {
+            walk_expr(self, arg);
+        }
+        self.indent -= 1;
+        self.stop_line();
+    }
 
     fn visit_bin_expr(&mut self, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
         self.add(&format!("BinOp {}", op.symbol));
@@ -121,7 +132,15 @@ impl<P: Pointer> Pass<P> for Printer {
         self.stop_line();
     }
 
-    
+    fn visit_parenthesed(&mut self, node: &Expr<P>) {
+        self.add("Parenthesed");
+        self.start_line();
+        self.indent += 1;
+        walk_expr(self, node);
+        self.indent -= 1;
+        self.stop_line();
+    }
+
     fn visit_int_lit(&mut self, val: u64) {
         self.add(&format!("Int: {}", val))
     }

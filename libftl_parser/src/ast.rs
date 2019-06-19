@@ -55,9 +55,13 @@ pub struct Expr<T: Pointer> {
 
 pub enum ExprKind<T: Pointer> {
     FunctionCall(FuncCall<T>),
-    Literal(Lit),
+    Literal(Lit<T>),
     Identifier(Ident<T>),
     Binary(BinOp<T>, Box<Expr<T>>, Box<Expr<T>>),
+    // We need it because parser doesn't
+    // know about precedence but the 
+    // later passes need to know about them.
+    Parenthesed(Box<Expr<T>>), 
 }
 
 pub struct FuncCall<T: Pointer> {
@@ -65,8 +69,13 @@ pub struct FuncCall<T: Pointer> {
     pub args: Vec<Box<Expr<T>>>,
 }
 
-pub enum Lit {
-    Int(u64),
+pub struct Lit<T: Pointer> {
+    pub kind: LitKind,
+    pub span: Span<T>,
+}
+
+pub enum LitKind {
+     Int(u64),
 }
 
 pub enum BinOp<T: Pointer> {

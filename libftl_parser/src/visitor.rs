@@ -43,10 +43,14 @@ pub trait Pass<P: Pointer>: Sized {
         walk_func_call(self, node);
     }
     
-    fn visit_lit(&mut self, node: &Lit) {
+    fn visit_parenthesed(&mut self, node: &Expr<P>) {
+        walk_expr(self, node);
+    }
+
+    fn visit_lit(&mut self, node: &Lit<P>) {
         walk_lit(self, node);
     }
-    
+
     fn visit_int_lit(&mut self, _val: u64) {
         self.nop()
     }
@@ -108,6 +112,9 @@ pub fn walk_expr<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Expr<Ptr>) {
                 BinOp::Op(ref op) => v.visit_bin_expr(op, lhs, rhs),
             }
         },
+        ExprKind::Parenthesed(ref expr) => {
+            v.visit_parenthesed(expr);
+        },
     }
 }
 
@@ -118,8 +125,8 @@ pub fn walk_func_call<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncCall<Ptr
     }
 }
 
-pub fn walk_lit<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Lit) {
-    match node {
-        Lit::Int(val) => v.visit_int_lit(*val),
+pub fn walk_lit<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Lit<Ptr>) {
+    match node.kind {
+        LitKind::Int(val) => v.visit_int_lit(val),
     }
 }

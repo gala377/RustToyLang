@@ -175,26 +175,17 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_infix_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
-        let lhs = self.parse_primary_expr()?;
-        let mut lhs = ast::Expr{
-            id: self.next_node_id(),
-            kind: lhs,
-            span: Span {
-                beg: beg.clone(),
-                end: self.curr_ptr(),
-            },
-        };
+        let mut lhs = self.parse_func_call()?;
         while let Ok(op) = self.one_of_tok(vec![
             token::Kind::InfixIdent,
             token::Kind::Operator]) 
         {
             let beg = self.curr_ptr();
-            let rhs = match self.parse_primary_expr() {
+            let rhs = match self.parse_func_call() {
                 Ok(expr) => expr,
                 _ => {
                     self.err(Self::msg_err(
-                        "Expected primary expression after operator or infox call".to_owned(),
+                        "Expected primary expression after operator or infix call".to_owned(),
                         beg, self.curr_ptr()));
                     break;
                 }
@@ -224,33 +215,119 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                         _ => unreachable!(),
                     },
                     Box::new(lhs),
-                    Box::new(ast::Expr{
-                        id: self.next_node_id(),
-                        kind: rhs,
-                        span: Span{
-                            beg, 
-                            end: self.curr_ptr(),
-                        }
-                    })
+                    Box::new(rhs),
                 ),
             }
         }
         Ok(lhs)
     }
 
+    fn parse_func_call(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
+        if let Err(_) = self.parse_token(token::Kind::At) {
+            return self.parse_primary_expr();
+        }
+        let lhs = match self.parse_primary_expr() {
+            Ok(e) => e,
+            Err(ParseErr::NotThisItem(_)) =>
+                self.fatal(Self::msg_err(
+                    "Expected expression after call operator".to_owned(),
+                    beg, 
+                    self.curr_ptr())),
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
+        };
+        let mut args = Vec::new();
+        while let Ok(arg) = self.parse_primary_expr() {
+            args.push(Box::new(arg));
+        }
+        Ok(ast::Expr {
+            id: self.next_node_id(),
+            span: Span {
+                beg,
+                end: self.curr_ptr(),
+            },
+            kind: ast::ExprKind::FunctionCall(
+                ast::FuncCall{
+                    lhs: Box::new(lhs),
+                    args: args,
+            }),
+        })
+    }
+
     // Primary expr
 
-    fn parse_primary_expr(&mut self) -> PRes<ast::ExprKind<S::Pointer>, S::Pointer> {
+    fn parse_primary_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         if let Ok(ident) = self.parse_ident() {
-            return Ok(ast::ExprKind::Identifier(ident));
+            return Ok(ast::Expr{
+                id: self.next_node_id(),
+                span: Span {
+                    beg: ident.span.clone().beg,
+                    end: ident.span.clone().end,
+                },
+                kind: ast::ExprKind::Identifier(ident),
+            });
         }
         if let Ok(lit) = self.parse_lit() {
-            return Ok(ast::ExprKind::Literal(lit));
+            return Ok(ast::Expr{
+                id: self.next_node_id(),
+                span: Span {
+                    beg: lit.span.clone().beg,
+                    end: lit.span.clone().end,
+                },
+                kind: ast::ExprKind::Literal(lit),
+            });
+        }
+        if let expr @ Ok(_) = self.parse_parenthesis_expr() {
+            return expr;
         }
         match self.lexer.curr() {
             None => Err(ParseErr::EOF),
             Some(tok) => Err(ParseErr::NotThisItem(tok)),
         }
+    }
+
+    fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
+        self.parse_token(token::Kind::LeftParenthesis)?;
+        let expr = match self.parse_expr() {
+            Ok(e) => e,
+            Err(ParseErr::EOF) => 
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(),
+                    beg,
+                    self.curr_ptr(),
+                )),
+            Err(ParseErr::NotThisItem(_)) => 
+                self.fatal(Self::msg_err(
+                    "Expression expected after opening parenthesis '('".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                )),
+        };
+        match self.parse_token(token::Kind::RightParenthesis) {
+            Err(ParseErr::EOF) => 
+                self.err(Self::msg_err(
+                    "End of file reached".to_owned(),
+                    beg.clone(),
+                    self.curr_ptr()
+                )),
+            Err(ParseErr::NotThisItem(tok)) => 
+                self.err(Self::unexpected_token_err(
+                    token::Kind::RightParenthesis,
+                    token::Value::String(String::from(")")),
+                    tok,
+                    "Expected closing parenthesis".to_owned()
+                )),
+            _ => (),
+        };
+        Ok(ast::Expr{
+            id: self.next_node_id(),
+            span: Span {
+                beg,
+                end: self.curr_ptr(),
+            },
+            kind: ast::ExprKind::Parenthesed(Box::new(expr)),
+        })
     }
 
     fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
@@ -267,14 +344,21 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     // Literals
 
-    fn parse_lit(&mut self) -> PRes<ast::Lit, S::Pointer> {
+    fn parse_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
         self.parse_int_lit()
     }
 
-    fn parse_int_lit(&mut self) -> PRes<ast::Lit, S::Pointer> {
+    fn parse_int_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
         let tok = self.parse_token(token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
-            Ok(ast::Lit::Int(v))
+            Ok(ast::Lit {
+                kind: ast::LitKind::Int(v),
+                span: Span {
+                    beg,
+                    end: self.curr_ptr(),
+                }
+            })
         } else {
             unreachable!();
         }
@@ -327,6 +411,10 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         self.sess.borrow_mut().fatal(err)
     }
 
+    fn eof_reached_fatal(&mut self, beg: S::Pointer, end: S::Pointer) -> ! {
+        self.fatal(Self::msg_err(
+            "End of file reached".to_owned(), beg, end))
+    }
     // Errors
 
     #[allow(dead_code)]

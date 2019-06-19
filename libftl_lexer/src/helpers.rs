@@ -25,6 +25,7 @@ pub fn is_operator(symbol: &str) -> Option<token::Kind> {
         "(" => Some(token::Kind::LeftParenthesis),
         ")" => Some(token::Kind::RightParenthesis),
         ":" => Some(token::Kind::Colon),
+        "@" => Some(token::Kind::At),
         _ => None,
     }
 }
