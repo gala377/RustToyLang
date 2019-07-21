@@ -33,6 +33,7 @@ pub fn is_operator(symbol: &str) -> Option<token::Kind> {
 pub fn is_keyword(symbol: &str) -> Option<token::Kind> {
     match symbol {
         "def" => Some(token::Kind::FuncDef),
+        "infix" => Some(token::Kind::InfixDef),
         _ => None,
     }
 }

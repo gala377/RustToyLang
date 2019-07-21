@@ -75,11 +75,21 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        let func_def = self.parse_func_decl()?;
+        let mut kind;
+        if let Ok(func_def) = self.parse_func_decl() {
+            kind = ast::TopLevelDeclKind::FunctionDef(func_def);
+        } else if let Ok(infix_def) = self.parse_infix_decl() {
+            kind = ast::TopLevelDeclKind::InfixDef(infix_def);
+        } else {
+            return Err(match self.lexer.curr() {
+                Some(tok) => ParseErr::NotThisItem(tok),
+                None => ParseErr::EOF, 
+            });
+        }
         let end = self.curr_ptr();
         Ok(ast::TopLevelDecl{
             id: self.next_node_id(),
-            kind: ast::TopLevelDeclKind::FunctionDef(func_def),
+            kind,
             span: Span {
                 beg, 
                 end,
@@ -88,6 +98,101 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     // Function
+
+    fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
+        if let Err(err) = self.parse_token(token::Kind::InfixDef) {
+            return Err(err);
+        }
+        let precedence = match self.parse_int_lit() {
+            Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val,
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.fatal(Self::unexpected_token_err(
+                    token::Kind::IntLiteral,
+                    token::Value::None,
+                    tok,
+                    "Infix declaration needs to have its precendence.".to_owned() 
+                ));
+            },
+            Err(ParseErr::EOF) => {
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                ));
+            },
+        } as usize;
+        let op = match self.parse_op() {
+            Ok(id) => id,
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.fatal(Self::unexpected_token_err(
+                    token::Kind::Identifier,
+                    token::Value::None,
+                    tok, 
+                    "An infix needs an operator as its name.".to_owned()
+                ));
+            },
+            Err(ParseErr::EOF) => {
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                ));
+            },
+        };
+        let arg_1 = match self.parse_func_arg() {
+            Ok(arg) => arg,
+            Err(_) => {
+                self.fatal(Self::msg_err(
+                    "Infix needs 2 arguments".to_owned(),
+                    beg,
+                    self.curr_ptr()));
+            }
+        };
+        let arg_2 = match self.parse_func_arg() {
+            Ok(arg) => arg,
+            Err(_) => {
+                self.fatal(Self::msg_err(
+                    "Infix needs 2 arguments".to_owned(),
+                    beg,
+                    self.curr_ptr()));
+            }
+        };
+        match self.parse_token(token::Kind::Colon) {
+            Err(ParseErr::EOF) => 
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(), beg, self.curr_ptr())),
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.err(Self::unexpected_token_err(
+                    token::Kind::Colon,
+                    token::Value::None, 
+                    tok, "Colon expected".to_owned()))
+            }
+            _ => (),  
+        };
+        let body = match self.parse_expr() {
+            Ok(expr) => expr,
+            Err(ParseErr::NotThisItem(_)) =>
+                self.fatal(Self::msg_err(
+                    "Infix needs a body definition".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                )),
+            Err(ParseErr::EOF) =>
+                self.fatal(Self::msg_err(
+                        "End of file reached".to_owned(),
+                        beg,
+                        self.curr_ptr()
+                    )),
+        };
+        Ok(ast::InfixDef{
+            ty: None,
+            op,       
+            body,
+            args: (arg_1, arg_2),
+            precedence,
+        })
+    }
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
@@ -154,18 +259,24 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     fn parse_func_args(&mut self) -> PRes<Vec<ast::FuncArg<S::Pointer>>, S::Pointer> {
         // TODO - For now no type, comma or parenthesis support
         let mut args = Vec::new();
-        while let Ok(ident) = self.parse_ident() {
-            args.push(
-                ast::FuncArg{
-                    ty: None,
-                    span: Span{
-                        beg: ident.span.clone().beg,
-                        end: ident.span.clone().end,
-                    },
-                    ident: ident,
-                });
+        while let Ok(arg) = self.parse_func_arg() {
+            args.push(arg);
         }
         Ok(args)
+    }
+
+    fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
+        match self.parse_ident() {
+            Ok(ident) => Ok(ast::FuncArg {
+                ty: None,
+                span: Span {
+                    beg: ident.span.clone().beg,
+                    end: ident.span.clone().end,
+                },
+                ident: ident, 
+            }),
+            Err(err) => Err(err),
+        }
     }
 
     // Expr 
@@ -334,6 +445,18 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let tok = self.parse_token(token::Kind::Identifier)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Ident {
+                symbol: s,
+                span: tok.span,
+            })
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn parse_op(&mut self) -> PRes<ast::Op<S::Pointer>, S::Pointer> {
+        let tok = self.parse_token(token::Kind::Operator)?;
+        if let token::Value::String(s) = tok.value {
+            Ok(ast::Op {
                 symbol: s,
                 span: tok.span,
             })

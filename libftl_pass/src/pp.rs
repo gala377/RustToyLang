@@ -97,6 +97,18 @@ impl<P: Pointer> Pass<P> for Printer {
 
     }
     
+    fn visit_infix_def(&mut self, node: &InfixDef<P>) {
+        let repr = format!("Infix{} {}({}, {})",
+            node.precedence,
+            node.op.symbol,
+            node.args.0.ident.symbol,
+            node.args.1.ident.symbol);
+        self.add(&repr);
+        self.indent += 1;
+        self.visit_expr(&node.body);
+        self.indent -= 1;
+    }
+
     fn visit_expr(&mut self, node: &Expr<P>) {
         walk_expr(self, node);
     }

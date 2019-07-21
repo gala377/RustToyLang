@@ -18,6 +18,10 @@ pub trait Pass<P: Pointer>: Sized {
         walk_func_def(self, node);
     }
     
+    fn visit_infix_def(&mut self, node: &InfixDef<P>) {
+        walk_infix_def(self, node);
+    }
+
     fn visit_func_arg(&mut self, _node: &FuncArg<P>) {
         // todo walk, when its more than just an identifier
         self.nop()
@@ -83,6 +87,9 @@ pub fn walk_top_level_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &TopLeve
         TopLevelDeclKind::FunctionDef(ref func_def) => {
             v.visit_func_def(func_def);
         },
+        TopLevelDeclKind::InfixDef(ref infix_def) => {
+            v.visit_infix_def(infix_def);
+        },
     }
 }
 
@@ -92,6 +99,15 @@ pub fn walk_func_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDef<Ptr>)
     for arg in &node.args {
         v.visit_func_arg(arg);
     }
+    v.visit_expr(&node.body);
+}
+
+pub fn walk_infix_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &InfixDef<Ptr>) {
+    // todo - for now skipping type
+    // todo - what to do with the precedence
+    v.visit_op(&node.op);
+    v.visit_func_arg(&node.args.0);
+    v.visit_func_arg(&node.args.1);
     v.visit_expr(&node.body);
 }
 

@@ -13,6 +13,7 @@ pub enum Kind {
 
     // Keywords
     FuncDef,
+    InfixDef,
 
     // Operators
     LeftParenthesis,

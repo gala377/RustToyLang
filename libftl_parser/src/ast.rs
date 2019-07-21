@@ -30,7 +30,8 @@ pub struct TopLevelDecl<T: Pointer> {
 }
 
 pub enum TopLevelDeclKind<T: Pointer> {
-    FunctionDef(FuncDef<T>)
+    FunctionDef(FuncDef<T>),
+    InfixDef(InfixDef<T>),
 }
 
 pub struct FuncDef<T: Pointer> {
@@ -38,6 +39,15 @@ pub struct FuncDef<T: Pointer> {
     pub ident: Ident<T>,
     pub args: Vec<FuncArg<T>>,
     pub body: Expr<T>,
+}
+
+pub struct InfixDef<T: Pointer> {
+    pub ty: Option<Type>,
+    pub precedence: usize,
+    pub op: Op<T>,
+    pub args: (FuncArg<T>, FuncArg<T>),
+    pub body: Expr<T>,
+
 }
 
 pub struct FuncArg<T: Pointer> {

@@ -2,3 +2,7 @@
 
 Shouldn't infix calls be expressions as well?
 Normal calls are... 
+
+Make reasocc pass to transform infix passes to normal calls
+
+Type infering
