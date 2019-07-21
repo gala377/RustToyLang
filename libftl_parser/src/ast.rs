@@ -39,6 +39,7 @@ pub struct FuncDef<T: Pointer> {
     pub ident: Ident<T>,
     pub args: Vec<FuncArg<T>>,
     pub body: Expr<T>,
+    pub attrs: Vec<Ident<T>>,
 }
 
 pub struct InfixDef<T: Pointer> {

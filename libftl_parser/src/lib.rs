@@ -221,6 +221,25 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             Ok(args) => args,
             Err(_) => unreachable!(),
         };
+        let mut attrs = Vec::new();
+        if let Ok(_) = self.parse_token(token::Kind::LeftParenthesis) {
+            while let Ok(attr) = self.parse_ident() {
+                attrs.push(attr);
+            }
+            match self.parse_token(token::Kind::RightParenthesis) {
+                Err(ParseErr::EOF) => 
+                    self.fatal(Self::msg_err(
+                        "End of file reached".to_owned(), beg, self.curr_ptr())),
+                Err(ParseErr::NotThisItem(tok)) => {
+                    self.err(Self::unexpected_token_err(
+                        token::Kind::RightParenthesis,
+                        token::Value::None, 
+                        tok, "Unclosed attributes parenthesis".to_owned()))
+                }
+                _ => (),  
+            };
+        }
+
         match self.parse_token(token::Kind::Colon) {
             Err(ParseErr::EOF) => 
                 self.fatal(Self::msg_err(
@@ -252,6 +271,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             ident,
             args,
             body,
+            attrs,
             ty: None,
         })
     }
