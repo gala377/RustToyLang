@@ -1,8 +1,11 @@
 use crate::ast::*;
+use crate::visitor_mut::MutPass;
+
 use ftl_source::{
     Pointer,
     Source,
 };
+
 
 pub trait Pass<P: Pointer>: Sized {
     
@@ -202,4 +205,85 @@ pub fn walk_func_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncType<Ptr
         v.visit_type(arg_t);
     }
     v.visit_type(&node.ret);
+}
+
+impl<P: Pointer, V: Pass<P>> MutPass<P> for V {
+
+    fn visit_module(&mut self, node: &mut Module<P>) {
+        <Self as Pass<P>>::visit_module(self, node);
+    }
+    
+    fn visit_top_level_decl(&mut self, node: &mut TopLevelDecl<P>) {
+        <Self as Pass<P>>::visit_top_level_decl(self, node);
+    }
+    
+    fn visit_func_decl(&mut self, node: &mut FuncDecl<P>) {
+        <Self as Pass<P>>::visit_func_decl(self, node);
+    }
+
+    fn visit_func_def(&mut self, node: &mut FuncDef<P>) {
+        <Self as Pass<P>>::visit_func_def(self, node);
+    }
+    
+    fn visit_infix_def(&mut self, node: &mut InfixDef<P>) {
+        <Self as Pass<P>>::visit_infix_def(self, node);
+    }
+
+    fn visit_func_arg(&mut self, node: &mut FuncArg<P>) {
+        // todo walk, when its more than just an identifier
+        <Self as Pass<P>>::visit_func_arg(self, node);
+    }
+    
+    fn visit_func_attr(&mut self, node: &mut Ident<P>) {
+        // todo walk, when its more than just an identifier        
+        <Self as Pass<P>>::visit_func_attr(self, node);
+    }
+
+    fn visit_expr(&mut self, node: &mut Expr<P>) {
+        <Self as Pass<P>>::visit_expr(self, node);
+    }
+    
+    fn visit_infix_func_call(&mut self, ident: &mut Ident<P>, lhs: &mut Expr<P>, rhs: &mut Expr<P>) {
+        <Self as Pass<P>>::visit_infix_func_call(self, ident, lhs, rhs);    
+    }
+
+    fn visit_bin_expr(&mut self, op: &mut Op<P>, lhs: &mut Expr<P>, rhs: &mut Expr<P>) {
+        <Self as Pass<P>>::visit_bin_expr(self, op, lhs, rhs);
+    }
+
+    fn visit_func_call(&mut self, node: &mut FuncCall<P>) {
+        <Self as Pass<P>>::visit_func_call(self, node);
+    }
+    
+    fn visit_parenthesed(&mut self, node: &mut Expr<P>) {
+        <Self as Pass<P>>::visit_parenthesed(self, node);
+    }
+
+    fn visit_lit(&mut self, node: &mut Lit<P>) {
+        <Self as Pass<P>>::visit_lit(self, node);
+    }
+
+    fn visit_int_lit(&mut self, val: &mut u64) {
+        <Self as Pass<P>>::visit_int_lit(self, *val);
+    }
+
+    fn visit_ident(&mut self, node: &mut Ident<P>) {
+        <Self as Pass<P>>::visit_ident(self, node);
+    }
+
+    fn visit_op(&mut self, node: &mut Op<P>) {
+        <Self as Pass<P>>::visit_op(self, node);        
+    }
+
+    fn visit_type(&mut self, node: &mut Type<P>) {
+        <Self as Pass<P>>::visit_type(self, node);        
+    }
+
+    fn visit_func_type(&mut self, node: &mut FuncType<P>) {
+        <Self as Pass<P>>::visit_func_type(self, node);        
+    }
+
+    fn visit_lit_type(&mut self, node: &mut LitType) {
+        <Self as Pass<P>>::visit_lit_type(self, node);                
+    }
 }
