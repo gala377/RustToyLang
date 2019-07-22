@@ -86,10 +86,15 @@ impl<P: Pointer> Pass<P> for Printer {
     }
     
     fn visit_func_def(&mut self, node: &FuncDef<P>) {
-        let mut repr = format!("FuncDef {}", node.ident.symbol);
+        let mut repr = format!("FuncDef {} args(", node.ident.symbol);
         for arg in &node.args {
-            repr += &format!(" {}", arg.ident.symbol);
+            repr += &format!(" {},", arg.ident.symbol);
         }
+        repr += ") attr(";
+        for attr in &node.attrs {
+            repr += &format!(" {},", attr.symbol)
+        }
+        repr += ")";
         self.add(&repr);
         self.indent += 1;
         self.visit_expr(&node.body);
@@ -98,7 +103,7 @@ impl<P: Pointer> Pass<P> for Printer {
     }
     
     fn visit_infix_def(&mut self, node: &InfixDef<P>) {
-        let repr = format!("Infix{} {}({}, {})",
+        let repr = format!("Infix({}) {} args({}, {})",
             node.precedence,
             node.op.symbol,
             node.args.0.ident.symbol,

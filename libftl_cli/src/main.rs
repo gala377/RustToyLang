@@ -25,7 +25,7 @@ use ftl_pass::{
 
 
 static SOURCE: &str = r#"
-    def nop (lang_nop) : 0
+    def  nop (lang_nop) : 0
     def add a b (lang_add inline hide) : @nop
 
     infix 5 + a b: @add a b
