@@ -25,11 +25,12 @@ use ftl_pass::{
 
 
 static SOURCE: &str = r#"
-    def  nop (lang_nop) : 0
-    def add a b (lang_add inline hide) : @nop
-
+    decl nop (lang_nop) : void
+    
+    decl add int int (lang_add inline) : int
     infix 5 + a b: @add a b
 
+    decl foo int int: int
     def foo a b: a + b
 
     def bar: 1 -- 2 <=> 3 `foo_bar 4 $ 5 % 0

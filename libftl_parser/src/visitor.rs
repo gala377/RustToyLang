@@ -14,6 +14,10 @@ pub trait Pass<P: Pointer>: Sized {
         walk_top_level_decl(self, node);
     }
     
+    fn visit_func_decl(&mut self, node: &FuncDecl<P>) {
+        walk_func_decl(self, node);
+    }
+
     fn visit_func_def(&mut self, node: &FuncDef<P>) {
         walk_func_def(self, node);
     }
@@ -72,6 +76,18 @@ pub trait Pass<P: Pointer>: Sized {
         self.nop()
     }
 
+    fn visit_type(&mut self, node: &Type<P>) {
+        walk_type(self, node);
+    }
+
+    fn visit_func_type(&mut self, node: &FuncType<P>) {
+        walk_func_type(self, node);
+    }
+
+    fn visit_lit_type(&mut self, _node: &LitType) {
+        self.nop()
+    }
+
     fn nop(&mut self) {}
 }
 
@@ -95,16 +111,30 @@ pub fn walk_top_level_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &TopLeve
         TopLevelDeclKind::InfixDef(ref infix_def) => {
             v.visit_infix_def(infix_def);
         },
+        TopLevelDeclKind::FunctionDecl(ref func_decl) => {
+            v.visit_func_decl(func_decl);
+        },
     }
 }
 
-pub fn walk_func_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDef<Ptr>) {
-    // todo - for now skipping type 
+pub fn walk_func_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDecl<Ptr>) {
     v.visit_ident(&node.ident);
+    if let Some(ref ty) = node.ty {
+        v.visit_type(ty);
+    }
+    // todo: should it be here? 
+    // shouldn't walks be inside the visits 
+    // and visits inside the walks? 
+    walk_func_attrs(v, &node.attrs);
+}
+
+
+
+pub fn walk_func_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDef<Ptr>) {
+    v.visit_func_decl(&node.decl); 
     for arg in &node.args {
         v.visit_func_arg(arg);
     }
-    walk_func_attrs(v, &node.attrs);
     v.visit_expr(&node.body);
 }
 
@@ -157,4 +187,19 @@ pub fn walk_lit<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Lit<Ptr>) {
     match node.kind {
         LitKind::Int(val) => v.visit_int_lit(val),
     }
+}
+
+pub fn walk_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Type<Ptr>) {
+    use TypeKind::*;
+    match node.kind {
+        Function(ref func_t) => v.visit_func_type(func_t),
+        Literal(ref lit_t) => v.visit_lit_type(lit_t),
+    }
+}
+
+pub fn walk_func_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncType<Ptr>) {
+    for arg_t in &node.args {
+        v.visit_type(arg_t);
+    }
+    v.visit_type(&node.ret);
 }

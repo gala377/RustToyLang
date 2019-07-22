@@ -76,7 +76,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
         let mut kind;
-        if let Ok(func_def) = self.parse_func_decl() {
+        if let Ok(func_decl) = self.parse_func_decl() {
+            kind = ast::TopLevelDeclKind::FunctionDecl(func_decl);
+        } else if let Ok(func_def) = self.parse_func_def() {
             kind = ast::TopLevelDeclKind::FunctionDef(func_def);
         } else if let Ok(infix_def) = self.parse_infix_decl() {
             kind = ast::TopLevelDeclKind::InfixDef(infix_def);
@@ -194,7 +196,132 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         })
     }
 
-    fn parse_func_decl(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
+    fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
+        if let Err(err) = self.parse_token(token::Kind::FuncDecl) {
+            return Err(err);
+        }
+        let ident = match self.parse_ident() {
+            Ok(id) => id,
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.fatal(Self::unexpected_token_err(
+                    token::Kind::Identifier,
+                    token::Value::None,
+                    tok, 
+                    "A function needs an identifier as its name.".to_owned()
+                ));
+            },
+            Err(ParseErr::EOF) => {
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(),
+                    beg,
+                    self.curr_ptr()
+                ));
+            }
+        };
+        let mut args_t = Vec::new();
+        if let Ok(tmp_args_t) = self.parse_func_args_types() {
+            args_t = tmp_args_t;
+        }
+        let mut attrs = Vec::new(); 
+        if let Ok(tmp_attrs) = self.parse_func_attrs() {
+            attrs = tmp_attrs;
+        }
+        match self.parse_token(token::Kind::Colon) {
+            Err(ParseErr::EOF) => 
+                self.fatal(Self::msg_err(
+                    "End of file reached".to_owned(), beg, self.curr_ptr())),
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.err(Self::unexpected_token_err(
+                    token::Kind::Colon,
+                    token::Value::None, 
+                    tok, "Colon expected".to_owned()))
+            }
+            _ => (),  
+        };
+        let ret_t = self.parse_type()?;
+        Ok(ast::FuncDecl {
+            ty: Some(ast::Type {
+                span: Span {
+                    beg: if args_t.is_empty() {
+                        ret_t.span.beg.clone()
+                    } else {
+                        args_t[0].span.beg.clone()
+                    },
+                    end: ret_t.span.end.clone(),
+                },
+                kind: ast::TypeKind::Function(
+                    ast::FuncType{
+                        ret: Box::new(ret_t),
+                        args: args_t.into_iter().map(|x| Box::new(x)).collect(),
+                }),
+     
+            }),
+            attrs,
+            ident, 
+        })
+    }
+
+    fn parse_func_args_types(&mut self) -> PRes<Vec<ast::Type<S::Pointer>>, S::Pointer> {
+        let mut args = Vec::new();
+        while let Ok(t) = self.parse_type() {
+            if let ast::TypeKind::Literal(ast::LitType::Void) = t.kind {
+                self.err(
+                    Self::msg_err(
+                        "Void can only be used as function return argument".to_owned(),
+                        t.span.beg,
+                        t.span.end,
+                ))
+            } else {
+                args.push(t);
+            }
+        }
+        return Ok(args);
+    }
+
+    fn parse_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
+        // todo allow function types
+        let ident = self.parse_ident()?;
+        if let Some(lit) = ast::is_lit_type(&ident.symbol) {
+            Ok(ast::Type{
+                kind: ast::TypeKind::Literal(lit),
+                span: ident.span,
+            })
+        } else {
+            match self.lexer.curr() {
+                Some(tok) => Err(ParseErr::NotThisItem(tok)),
+                None => Err(ParseErr::EOF),
+            }
+        }
+    }
+
+    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::Ident<S::Pointer>>, S::Pointer> {
+        match self.parse_token(token::Kind::LeftParenthesis) {
+            Ok(_) => {
+                let mut attrs = Vec::new();
+                while let Ok(attr) = self.parse_ident() {
+                    attrs.push(attr);
+                }
+                let beg = self.curr_ptr();
+                match self.parse_token(token::Kind::RightParenthesis) {
+                    Err(ParseErr::EOF) => 
+                        self.fatal(Self::msg_err(
+                            "End of file reached".to_owned(), beg, self.curr_ptr())),
+                    Err(ParseErr::NotThisItem(tok)) => {
+                        self.err(Self::unexpected_token_err(
+                            token::Kind::RightParenthesis,
+                            token::Value::None, 
+                            tok, "Unclosed attributes parenthesis".to_owned()))
+                    }
+                    _ => (),  
+                };
+                Ok(attrs)
+            },
+            Err(err) => Err(err),
+        }
+    }
+
+    fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
         if let Err(err) = self.parse_token(token::Kind::FuncDef) {
             return Err(err);
@@ -222,24 +349,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             Err(_) => unreachable!(),
         };
         let mut attrs = Vec::new();
-        if let Ok(_) = self.parse_token(token::Kind::LeftParenthesis) {
-            while let Ok(attr) = self.parse_ident() {
-                attrs.push(attr);
-            }
-            match self.parse_token(token::Kind::RightParenthesis) {
-                Err(ParseErr::EOF) => 
-                    self.fatal(Self::msg_err(
-                        "End of file reached".to_owned(), beg, self.curr_ptr())),
-                Err(ParseErr::NotThisItem(tok)) => {
-                    self.err(Self::unexpected_token_err(
-                        token::Kind::RightParenthesis,
-                        token::Value::None, 
-                        tok, "Unclosed attributes parenthesis".to_owned()))
-                }
-                _ => (),  
-            };
+        if let Ok(tmp_attrs) = self.parse_func_attrs() {
+            attrs = tmp_attrs;
         }
-
         match self.parse_token(token::Kind::Colon) {
             Err(ParseErr::EOF) => 
                 self.fatal(Self::msg_err(
@@ -268,11 +380,13 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     )),
         };
         Ok(ast::FuncDef{
-            ident,
+            decl: ast::FuncDecl {
+                ident,
+                attrs,             
+                ty: None,
+            },
             args,
             body,
-            attrs,
-            ty: None,
         })
     }
 

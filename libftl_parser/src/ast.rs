@@ -31,19 +31,24 @@ pub struct TopLevelDecl<T: Pointer> {
 
 pub enum TopLevelDeclKind<T: Pointer> {
     FunctionDef(FuncDef<T>),
+    FunctionDecl(FuncDecl<T>),
     InfixDef(InfixDef<T>),
 }
 
-pub struct FuncDef<T: Pointer> {
-    pub ty: Option<Type>, // for now, we dont have infering yet 
+pub struct FuncDecl<T: Pointer> {
+    pub ty: Option<Type<T>>, // for now, we dont have infering yet 
+    pub attrs: Vec<Ident<T>>,
     pub ident: Ident<T>,
+}
+
+pub struct FuncDef<T: Pointer> {
+    pub decl: FuncDecl<T>,
     pub args: Vec<FuncArg<T>>,
     pub body: Expr<T>,
-    pub attrs: Vec<Ident<T>>,
 }
 
 pub struct InfixDef<T: Pointer> {
-    pub ty: Option<Type>,
+    pub ty: Option<Type<T>>,
     pub precedence: usize,
     pub op: Op<T>,
     pub args: (FuncArg<T>, FuncArg<T>),
@@ -52,7 +57,7 @@ pub struct InfixDef<T: Pointer> {
 }
 
 pub struct FuncArg<T: Pointer> {
-    pub ty: Option<Type>,
+    pub ty: Option<Type<T>>,
     pub ident: Ident<T>,
     pub span: Span<T>
 }
@@ -109,23 +114,33 @@ pub struct Ident<T: Pointer> {
 /// Types
 
 
-pub struct Type {
-    pub kind: TypeKind,
+pub struct Type<T: Pointer> {
+    pub kind: TypeKind<T>,
+    pub span: Span<T>,
 }
 
-pub enum TypeKind {
-    Function(FuncType),
+pub enum TypeKind<T: Pointer> {
+    Function(FuncType<T>),
     Literal(LitType)    
 }
 
-pub struct FuncType {
-    pub ret: Box<Type>,
-    pub args: Vec<Box<Type>>,
+pub struct FuncType<T: Pointer> {
+    pub ret: Box<Type<T>>,
+    pub args: Vec<Box<Type<T>>>,
 }
 
 pub enum LitType {
     Int, 
     Void,
+}
+
+pub fn is_lit_type(symbol: &str) -> Option<LitType> {
+    use LitType::*;
+    match symbol {
+        "int" => Some(Int),
+        "void" => Some(Void),
+        _ => None,
+    }
 }
 
 

@@ -68,6 +68,24 @@ impl Printer {
         self.draw_line_at_indent.remove(&indent);
     }
 
+    fn strfy_type<P: Pointer>(ty: &Type<P>) -> String {
+        match ty.kind {
+            TypeKind::Literal(ref lit) => {
+                match lit {
+                    LitType::Int => String::from("int"),
+                    LitType::Void => String::from("void"),
+                }
+            },
+            TypeKind::Function(ref func_t) => {
+                let mut repr = String::from("(");
+                for arg in &func_t.args {
+                    repr += &format!(" {}", Self::strfy_type(arg));
+                } 
+                repr += &format!("): {}", Self::strfy_type(&func_t.ret));
+                repr 
+            }
+        } 
+    }
  }
 
 impl<P: Pointer> Pass<P> for Printer {
@@ -84,15 +102,29 @@ impl<P: Pointer> Pass<P> for Printer {
         }
         self.indent -= 1;
     }
+
+    fn visit_func_decl(&mut self, node: &FuncDecl<P>) {
+        let mut repr = format!(
+            "FuncDecl {} type({}) attrs(",
+             node.ident.symbol,
+             if let Some(ref ty) = node.ty {
+                 Self::strfy_type(&ty)
+             } else {
+                 String::from("")
+             }
+        );
+        for attr in &node.attrs {
+            repr += &format!(" {},", &attr.symbol)
+        }
+        repr += ")";
+        self.add(&repr);
+    }
     
     fn visit_func_def(&mut self, node: &FuncDef<P>) {
-        let mut repr = format!("FuncDef {} args(", node.ident.symbol);
+        self.visit_func_decl(&node.decl);
+        let mut repr = format!("FuncDef {} args(", node.decl.ident.symbol);
         for arg in &node.args {
             repr += &format!(" {},", arg.ident.symbol);
-        }
-        repr += ") attr(";
-        for attr in &node.attrs {
-            repr += &format!(" {},", attr.symbol)
         }
         repr += ")";
         self.add(&repr);

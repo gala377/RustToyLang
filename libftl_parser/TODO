@@ -3,6 +3,12 @@
 Shouldn't infix calls be expressions as well?
 Normal calls are... 
 
-Make reasocc pass to transform infix passes to normal calls
+Refactor match ... Err(err) => Err(err) to let smth = self.func()?;
+Refactor long parse matches to try_parse_* functions
+Allow function types in parse_type
 
-Type infering
+
+Pass to transform infix passes to normal calls.
+Pass to fix precedence in expressions.
+Pass which infers function types.
+Pass to merge function decl with its definitions.
