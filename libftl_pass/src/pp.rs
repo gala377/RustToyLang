@@ -121,7 +121,6 @@ impl<P: Pointer> Pass<P> for Printer {
     }
     
     fn visit_func_def(&mut self, node: &FuncDef<P>) {
-        self.visit_func_decl(&node.decl);
         let mut repr = format!("FuncDef {} args(", node.decl.ident.symbol);
         for arg in &node.args {
             repr += &format!(" {},", arg.ident.symbol);
@@ -129,6 +128,7 @@ impl<P: Pointer> Pass<P> for Printer {
         repr += ")";
         self.add(&repr);
         self.indent += 1;
+        self.visit_func_decl(&node.decl);
         self.visit_expr(&node.body);
         self.indent -= 1;
 

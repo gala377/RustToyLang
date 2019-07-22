@@ -14,6 +14,7 @@ use ftl_error::LangError;
 pub mod ast;
 pub mod errors;
 pub mod visitor;
+pub mod visitor_mut;
 
 type PRes<T, P> = Result<T, ParseErr<P>>;
 
