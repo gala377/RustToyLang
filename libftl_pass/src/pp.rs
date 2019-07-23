@@ -29,6 +29,12 @@ impl Printer {
         write!(w, "{}", self.res)
     }
 
+    fn clear(&mut self) {
+        self.res.clear();
+        self.indent = 0;
+        self.draw_line_at_indent.clear();
+    }
+
     fn with_indent(&self, s: &str) -> String {
         let mut res = String::new();
         for i in 0..self.indent {
@@ -91,6 +97,7 @@ impl Printer {
 impl<P: Pointer> Pass<P> for Printer {
 
     fn visit_module(&mut self, node: &Module<P>) {
+        self.clear();
         self.add("Module");
         self.start_line();
         self.indent += 1;

@@ -181,6 +181,7 @@ dependencies = [
  "ftl_session 0.1.0",
  "ftl_source 0.1.0",
  "ftl_utility 0.1.0",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

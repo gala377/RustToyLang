@@ -1,9 +1,5 @@
 use std::io;
 
-use termion::{
-    style,
-    color,
-};
 use simplelog::*;
 
 use ftl_source::string::String;
@@ -15,14 +11,13 @@ use ftl_session::{
 use ftl_utility::RcRef;
 use ftl_parser::{
     Parser,
-    visitor::{
-        visit_ast,
-    },
-};
-use ftl_pass::{
-    pp,
 };
 
+mod helpers;
+mod phase;
+
+use helpers::*;
+use phase::*;
 
 static SOURCE: &str = r#"
     decl nop (lang_nop) : void
@@ -46,12 +41,7 @@ fn main() -> io::Result<()> {
     } else {
         LevelFilter::Warn
     });
-    let mut out = std::io::stdout();
-    print!("\n");
-    print_red("🦊 Compilation starts...");
-    print_line();    
-    print_red("🦒 Creating source and session...");
-    let sess = RcRef::new(Session::new(String::from(SOURCE)));
+    let sess = create_sess();
     
     print_green("✔ Created");
     print_line();
@@ -70,64 +60,43 @@ fn main() -> io::Result<()> {
     let emmiter = Emitter::new(sess.clone());
     
     print_green("✔ Created");
-    print_line();
-    print_red("🦂 Creating passes...");
-
-    print_red("🐌 Creating PrettyPrintPass...");
-    let mut ppp = pp::Printer::new();
-    print_green("✔ Done");
-
-    print_green("✔ All passes created");
-
 
     print_line();
     print_red("🐉 Parsing source...");
-    let ast = parser.parse();
+    let mut ast = parser.parse();
     
     print_green("✔ Source parsed");
-    print_line();
-    print_red("🦖 Applying passes...");
-    print_red("🦋 PrettyPrintPass...");
-    visit_ast(&mut ppp, &ast);
-    print_green("✔ Done...");
+    
+    let mut ppp = phase::ppp::PrettyPrint{};
+    ppp.run_wrapped(&mut ast);
 
-
-    print_line();
-    print_red("🐺 Printing errors...");
-    print_line();
-    emmiter.emit_err(&mut out)?;
-    print_line();
-    print_green("✔ Done");
-
-    print_line();
-    print_red("🐙 Printing PrettyPrintPass output to stdout...");
-    print_line();
-    ppp.write(&mut out)?;
+    print_errors(&emmiter)?;
     
     print_line();
-    print_green("✔ Printed");
-    print_line();
     print_green("✔ Done");
     print_line();
+    
     Ok(())
 }
 
-fn print_red(s: &str) {
-    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Red), s, style::Reset);
+fn create_sess() -> RcRef<Session<ftl_source::string::String>> {
+    print!("\n");
+    print_red("🦊 Compilation starts...");
+    print_line();    
+    print_red("🦒 Creating source and session...");
+    RcRef::new(Session::new(String::from(SOURCE)))
 }
 
-fn print_green(s: &str) {
-    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Green), s, style::Reset);
+fn print_errors<S: ftl_source::Source>(emmiter: &Emitter<S>) -> std::io::Result<()> {
+    print_line();
+    print_red("🐺 Printing errors...");
+    print_line();
+    let mut out = std::io::stdout();    
+    emmiter.emit_err(&mut out)?;
+    print_line();
+    print_green("✔ Done");
+    Ok(())
 }
-
-fn print_line() {
-    print!("{}{}\n", style::Bold, color::Fg(color::Yellow));
-    for _ in 0..100 {
-        print!("=");
-    }
-    print!("\n\n{}", style::Reset);
-}
-
 
 fn init_logger(filter: LevelFilter) {
     CombinedLogger::init(

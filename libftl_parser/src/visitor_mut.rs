@@ -6,6 +6,11 @@ use ftl_source::{
     Source,
 };
 
+
+pub fn visit_ast_mut<S: Source, P: MutPass<S::Pointer>>(p: &mut P, ast: &mut AST<S>) {
+    p.visit_module(&mut ast.root);
+}
+
 pub trait MutPass<P: Pointer>: Sized {
     
     fn visit_module(&mut self, node: &mut Module<P>) {
