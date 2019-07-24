@@ -7,91 +7,91 @@ use ftl_source::{
 };
 
 
-pub fn visit_ast_mut<S: Source, P: MutPass<S::Pointer>>(p: &mut P, ast: &mut AST<S>) {
+pub fn visit_ast_mut<'ast, S: Source, P: MutPass<'ast, S::Pointer>>(p: &mut P, ast: &'ast mut AST<S>) {
     p.visit_module(&mut ast.root);
 }
 
-pub trait MutPass<P: Pointer>: Sized {
+pub trait MutPass<'ast, P: Pointer>: Sized {
     
-    fn visit_module(&mut self, node: &mut Module<P>) {
+    fn visit_module(&mut self, node: &'ast mut Module<P>) {
         noop_module(self, node);
     }
     
-    fn visit_top_level_decl(&mut self, node: &mut TopLevelDecl<P>) {
+    fn visit_top_level_decl(&mut self, node: &'ast mut TopLevelDecl<P>) {
         noop_top_level_decl(self, node);
     }
     
-    fn visit_func_decl(&mut self, node: &mut FuncDecl<P>) {
+    fn visit_func_decl(&mut self, node: &'ast mut FuncDecl<P>) {
         noop_func_decl(self, node);
     }
 
-    fn visit_func_def(&mut self, node: &mut FuncDef<P>) {
+    fn visit_func_def(&mut self, node: &'ast mut FuncDef<P>) {
         noop_func_def(self, node);
     }
     
-    fn visit_infix_def(&mut self, node: &mut InfixDef<P>) {
+    fn visit_infix_def(&mut self, node: &'ast mut InfixDef<P>) {
         noop_infix_def(self, node);
     }
 
-    fn visit_func_arg(&mut self, _node: &mut FuncArg<P>) {
+    fn visit_func_arg(&mut self, _node: &'ast mut FuncArg<P>) {
         // todo walk, when its more than just an identifier
         self.nop()
     }
     
-    fn visit_func_attr(&mut self, _node: &mut Ident<P>) {
+    fn visit_func_attr(&mut self, _node: &'ast mut Ident<P>) {
         // todo walk, when its more than just an identifier        
         self.nop()
     }
 
-    fn visit_expr(&mut self, node: &mut Expr<P>) {
+    fn visit_expr(&mut self, node: &'ast mut Expr<P>) {
         noop_expr(self, node);
     }
     
-    fn visit_infix_func_call(&mut self, ident: &mut Ident<P>, lhs: &mut Expr<P>, rhs: &mut Expr<P>) {
+    fn visit_infix_func_call(&mut self, _id: &'ast mut NodeId, ident: &'ast mut Ident<P>, lhs: &'ast mut Expr<P>, rhs: &'ast mut Expr<P>) {
         self.visit_ident(ident);
         noop_expr(self, lhs);
         noop_expr(self, rhs);
     }
 
-    fn visit_bin_expr(&mut self, op: &mut Op<P>, lhs: &mut Expr<P>, rhs: &mut Expr<P>) {
+    fn visit_bin_expr(&mut self, _id: &'ast mut NodeId, op: &'ast mut Op<P>, lhs: &'ast mut Expr<P>, rhs: &'ast mut Expr<P>) {
         self.visit_op(op);
         noop_expr(self, lhs);
         noop_expr(self, rhs);
     }
 
-    fn visit_func_call(&mut self, node: &mut FuncCall<P>) {
+    fn visit_func_call(&mut self, node: &'ast mut FuncCall<P>) {
         noop_func_call(self, node);
     }
     
-    fn visit_parenthesed(&mut self, node: &mut Expr<P>) {
+    fn visit_parenthesed(&mut self, _id: &'ast mut NodeId, node: &'ast mut Expr<P>) {
         noop_expr(self, node);
     }
 
-    fn visit_lit(&mut self, node: &mut Lit<P>) {
+    fn visit_lit(&mut self, node: &'ast mut Lit<P>) {
         noop_lit(self, node);
     }
 
-    fn visit_int_lit(&mut self, _val: &mut u64) {
+    fn visit_int_lit(&mut self, _val: &'ast mut u64) {
         self.nop()
     }
 
-    fn visit_ident(&mut self, _node: &mut Ident<P>) {
+    fn visit_ident(&mut self, _node: &'ast mut Ident<P>) {
         self.nop()
     }
 
-    fn visit_op(&mut self, _node: &mut Op<P>) {
+    fn visit_op(&mut self, _node: &'ast mut Op<P>) {
         self.nop()
     }
 
-    fn visit_type(&mut self, node: &mut Type<P>) {
+    fn visit_type(&mut self, node: &'ast mut Type<P>) {
         noop_type(self, node);
     }
 
-    fn visit_func_type(&mut self, node: &mut FuncType<P>) {
+    fn visit_func_type(&mut self, node: &'ast mut FuncType<P>) {
         noop_func_type(self, node);
     }
 
-    fn visit_lit_type(&mut self, _node: &mut LitType) {
+    fn visit_lit_type(&mut self, _node: &'ast mut LitType) {
         self.nop()
     }
 
@@ -99,18 +99,18 @@ pub trait MutPass<P: Pointer>: Sized {
 }
 
 
-pub fn visit_ast<S: Source, P: MutPass<S::Pointer>>(p: &mut P, ast: &mut AST<S>) {
+pub fn visit_ast<'ast, S: Source, P: MutPass<'ast, S::Pointer>>(p: &mut P, ast: &'ast mut AST<S>) {
     p.visit_module(&mut ast.root);
 }
 
 
-pub fn noop_module<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Module<Ptr>) {
+pub fn noop_module<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Module<Ptr>) {
     for decl in &mut node.decl {
         v.visit_top_level_decl(decl);
     }
 }
 
-pub fn noop_top_level_decl<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut TopLevelDecl<Ptr>) {
+pub fn noop_top_level_decl<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut TopLevelDecl<Ptr>) {
     match node.kind {
         TopLevelDeclKind::FunctionDef(ref mut func_def) => {
             v.visit_func_def(func_def);
@@ -124,7 +124,7 @@ pub fn noop_top_level_decl<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut 
     }
 }
 
-pub fn noop_func_decl<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncDecl<Ptr>) {
+pub fn noop_func_decl<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut FuncDecl<Ptr>) {
     v.visit_ident(&mut node.ident);
     if let Some(ref mut ty) = node.ty {
         v.visit_type(ty);
@@ -137,7 +137,7 @@ pub fn noop_func_decl<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncD
 
 
 
-pub fn noop_func_def<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncDef<Ptr>) {
+pub fn noop_func_def<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut FuncDef<Ptr>) {
     v.visit_func_decl(&mut node.decl); 
     for arg in &mut node.args {
         v.visit_func_arg(arg);
@@ -145,13 +145,13 @@ pub fn noop_func_def<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncDe
     v.visit_expr(&mut node.body);
 }
 
-pub fn walk_func_attrs<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Vec<Ident<Ptr>>) {
+pub fn walk_func_attrs<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Vec<Ident<Ptr>>) {
     for attr in node {
         v.visit_func_attr(attr);
     }
 }
 
-pub fn noop_infix_def<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut InfixDef<Ptr>) {
+pub fn noop_infix_def<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut InfixDef<Ptr>) {
     // todo - for now skipping type
     // todo - what to do with the precedence
     v.visit_op(&mut node.op);
@@ -160,7 +160,7 @@ pub fn noop_infix_def<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Infix
     v.visit_expr(&mut node.body);
 }
 
-pub fn noop_expr<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Expr<Ptr>) {
+pub fn noop_expr<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Expr<Ptr>) {
     match node.kind {
         ExprKind::FunctionCall(ref mut call) => {
             v.visit_func_call(call);
@@ -171,32 +171,32 @@ pub fn noop_expr<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Expr<Ptr>)
         ExprKind::Identifier(ref mut ident) => {
             v.visit_ident(ident);
         },
-        ExprKind::Binary(ref mut op, ref mut lhs, ref mut rhs) => {
+        ExprKind::Binary(ref mut id, ref mut op, ref mut lhs, ref mut rhs) => {
             match op {
-                BinOp::Ident(ref mut ident) => v.visit_infix_func_call(ident, lhs, rhs),
-                BinOp::Op(ref mut op) => v.visit_bin_expr(op, lhs, rhs),
+                BinOp::Ident(ref mut ident) => v.visit_infix_func_call(id, ident, lhs, rhs),
+                BinOp::Op(ref mut op) => v.visit_bin_expr(id, op, lhs, rhs),
             }
         },
-        ExprKind::Parenthesed(ref mut expr) => {
-            v.visit_parenthesed(expr);
+        ExprKind::Parenthesed(ref mut id, ref mut expr) => {
+            v.visit_parenthesed(id, expr);
         },
     }
 }
 
-pub fn noop_func_call<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncCall<Ptr>) {
+pub fn noop_func_call<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut FuncCall<Ptr>) {
     v.visit_expr(&mut node.lhs);
     for arg in &mut node.args {
         v.visit_expr(arg);
     }
 }
 
-pub fn noop_lit<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Lit<Ptr>) {
+pub fn noop_lit<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Lit<Ptr>) {
     match node.kind {
         LitKind::Int(ref mut val) => v.visit_int_lit(val),
     }
 }
 
-pub fn noop_type<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Type<Ptr>) {
+pub fn noop_type<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Type<Ptr>) {
     use TypeKind::*;
     match node.kind {
         Function(ref mut func_t) => v.visit_func_type(func_t),
@@ -204,7 +204,7 @@ pub fn noop_type<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut Type<Ptr>)
     }
 }
 
-pub fn noop_func_type<Ptr: Pointer, P: MutPass<Ptr>>(v: &mut P, node: &mut FuncType<Ptr>) {
+pub fn noop_func_type<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut FuncType<Ptr>) {
     for arg_t in &mut node.args {
         v.visit_type(arg_t);
     }

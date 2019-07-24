@@ -189,6 +189,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     )),
         };
         Ok(ast::InfixDef{
+            id: self.next_node_id(),
             ty: None,
             op,       
             body,
@@ -242,7 +243,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         };
         let ret_t = self.parse_type()?;
         Ok(ast::FuncDecl {
+            id: self.next_node_id(),
             ty: Some(ast::Type {
+                id: self.next_node_id(),
                 span: Span {
                     beg: if args_t.is_empty() {
                         ret_t.span.beg.clone()
@@ -253,6 +256,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                 },
                 kind: ast::TypeKind::Function(
                     ast::FuncType{
+                        id: self.next_node_id(),
                         ret: Box::new(ret_t),
                         args: args_t.into_iter().map(|x| Box::new(x)).collect(),
                 }),
@@ -285,6 +289,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let ident = self.parse_ident()?;
         if let Some(lit) = ast::is_lit_type(&ident.symbol) {
             Ok(ast::Type{
+                id: self.next_node_id(),
                 kind: ast::TypeKind::Literal(lit),
                 span: ident.span,
             })
@@ -381,7 +386,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     )),
         };
         Ok(ast::FuncDef{
+            id: self.next_node_id(),
             decl: ast::FuncDecl {
+                id: self.next_node_id(),
                 ident,
                 attrs,             
                 ty: None,
@@ -403,6 +410,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
         match self.parse_ident() {
             Ok(ident) => Ok(ast::FuncArg {
+                id: self.next_node_id(),
                 ty: None,
                 span: Span {
                     beg: ident.span.clone().beg,
@@ -447,21 +455,26 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     end: self.curr_ptr(),
                 },
                 kind: ast::ExprKind::Binary(
-                    match op.kind {
-                        token::Kind::InfixIdent => ast::BinOp::Ident(
-                            ast::Ident{
-                                symbol: sym,
-                                span: op.span,
-                        }),
-                        token::Kind::Operator => ast::BinOp::Op(
-                            ast::Op {
-                                symbol: sym,
-                                span: op.span,
-                        }),
-                        _ => unreachable!(),
-                    },
-                    Box::new(lhs),
-                    Box::new(rhs),
+                    ast::BinCall{
+                        id: self.next_node_id(),
+                        op: match op.kind {
+                            token::Kind::InfixIdent => ast::BinOp::Ident(
+                                ast::Ident{
+                                    id: self.next_node_id(),
+                                    symbol: sym,
+                                    span: op.span,
+                            }),
+                            token::Kind::Operator => ast::BinOp::Op(
+                                ast::Op {
+                                    id: self.next_node_id(),
+                                    symbol: sym,
+                                    span: op.span,
+                            }),
+                            _ => unreachable!(),
+                        },
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                    }
                 ),
             }
         }
@@ -494,6 +507,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             },
             kind: ast::ExprKind::FunctionCall(
                 ast::FuncCall{
+                    id: self.next_node_id(),
                     lhs: Box::new(lhs),
                     args: args,
             }),
@@ -572,7 +586,12 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                 beg,
                 end: self.curr_ptr(),
             },
-            kind: ast::ExprKind::Parenthesed(Box::new(expr)),
+            kind: ast::ExprKind::Parenthesed(
+                ast::Paren{
+                    id: self.next_node_id(),
+                    expr: Box::new(expr),
+                }
+            ),
         })
     }
 
@@ -580,6 +599,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let tok = self.parse_token(token::Kind::Identifier)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Ident {
+                id: self.next_node_id(),
                 symbol: s,
                 span: tok.span,
             })
@@ -592,6 +612,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let tok = self.parse_token(token::Kind::Operator)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Op {
+                id: self.next_node_id(),
                 symbol: s,
                 span: tok.span,
             })
@@ -611,6 +632,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         let tok = self.parse_token(token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
             Ok(ast::Lit {
+                id: self.next_node_id(),
                 kind: ast::LitKind::Int(v),
                 span: Span {
                     beg,
