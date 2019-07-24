@@ -36,18 +36,21 @@ pub enum TopLevelDeclKind<T: Pointer> {
 }
 
 pub struct FuncDecl<T: Pointer> {
+    pub id: NodeId,
     pub ty: Option<Type<T>>, // for now, we dont have infering yet 
     pub attrs: Vec<Ident<T>>,
     pub ident: Ident<T>,
 }
 
 pub struct FuncDef<T: Pointer> {
+    pub id: NodeId,
     pub decl: FuncDecl<T>,
     pub args: Vec<FuncArg<T>>,
     pub body: Expr<T>,
 }
 
 pub struct InfixDef<T: Pointer> {
+    pub id: NodeId,
     pub ty: Option<Type<T>>,
     pub precedence: usize,
     pub op: Op<T>,
@@ -57,6 +60,7 @@ pub struct InfixDef<T: Pointer> {
 }
 
 pub struct FuncArg<T: Pointer> {
+    pub id: NodeId,
     pub ty: Option<Type<T>>,
     pub ident: Ident<T>,
     pub span: Span<T>
@@ -73,19 +77,33 @@ pub enum ExprKind<T: Pointer> {
     FunctionCall(FuncCall<T>),
     Literal(Lit<T>),
     Identifier(Ident<T>),
-    Binary(BinOp<T>, Box<Expr<T>>, Box<Expr<T>>),
+    Binary(BinCall<T>),
     // We need it because parser doesn't
     // know about precedence but the 
     // later passes need to know about them.
-    Parenthesed(Box<Expr<T>>), 
+    Parenthesed(Paren<T>), 
 }
 
 pub struct FuncCall<T: Pointer> {
+    pub id: NodeId,
     pub lhs: Box<Expr<T>>,
     pub args: Vec<Box<Expr<T>>>,
 }
 
+pub struct Paren<T: Pointer> {
+    pub id: NodeId,
+    pub expr: Box<Expr<T>>,
+}
+
+pub struct BinCall<T: Pointer> {
+    pub id: NodeId,
+    pub op: BinOp<T>,
+    pub lhs: Box<Expr<T>>,
+    pub rhs: Box<Expr<T>>,
+}
+
 pub struct Lit<T: Pointer> {
+    pub id: NodeId,
     pub kind: LitKind,
     pub span: Span<T>,
 }
@@ -100,11 +118,13 @@ pub enum BinOp<T: Pointer> {
 }
 
 pub struct Op<T: Pointer> {
+    pub id: NodeId, 
     pub symbol: String,
     pub span: Span<T>,
 }
 
 pub struct Ident<T: Pointer> { 
+    pub id: NodeId,
     pub symbol: String,
     pub span: Span<T>,
 }
@@ -115,6 +135,7 @@ pub struct Ident<T: Pointer> {
 
 
 pub struct Type<T: Pointer> {
+    pub id: NodeId,
     pub kind: TypeKind<T>,
     pub span: Span<T>,
 }
@@ -125,6 +146,7 @@ pub enum TypeKind<T: Pointer> {
 }
 
 pub struct FuncType<T: Pointer> {
+    pub id: NodeId,
     pub ret: Box<Type<T>>,
     pub args: Vec<Box<Type<T>>>,
 }

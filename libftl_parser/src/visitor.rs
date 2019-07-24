@@ -7,63 +7,59 @@ use ftl_source::{
 };
 
 
-pub trait Pass<P: Pointer>: Sized {
+pub trait Pass<'ast, P: Pointer>: Sized {
     
-    fn visit_module(&mut self, node: &Module<P>) {
+    fn visit_module(&mut self, node: &'ast Module<P>) {
         walk_module(self, node);
     }
     
-    fn visit_top_level_decl(&mut self, node: &TopLevelDecl<P>) {
+    fn visit_top_level_decl(&mut self, node: &'ast TopLevelDecl<P>) {
         walk_top_level_decl(self, node);
     }
     
-    fn visit_func_decl(&mut self, node: &FuncDecl<P>) {
+    fn visit_func_decl(&mut self, node: &'ast FuncDecl<P>) {
         walk_func_decl(self, node);
     }
 
-    fn visit_func_def(&mut self, node: &FuncDef<P>) {
+    fn visit_func_def(&mut self, node: &'ast FuncDef<P>) {
         walk_func_def(self, node);
     }
     
-    fn visit_infix_def(&mut self, node: &InfixDef<P>) {
+    fn visit_infix_def(&mut self, node: &'ast InfixDef<P>) {
         walk_infix_def(self, node);
     }
 
-    fn visit_func_arg(&mut self, _node: &FuncArg<P>) {
+    fn visit_func_arg(&mut self, _node: &'ast FuncArg<P>) {
         // todo walk, when its more than just an identifier
         self.nop()
     }
     
-    fn visit_func_attr(&mut self, _node: &Ident<P>) {
+    fn visit_func_attr(&mut self, _node: &'ast Ident<P>) {
         // todo walk, when its more than just an identifier        
         self.nop()
     }
 
-    fn visit_expr(&mut self, node: &Expr<P>) {
+    fn visit_expr(&mut self, node: &'ast Expr<P>) {
         walk_expr(self, node);
     }
     
-    fn visit_infix_func_call(&mut self, ident: &Ident<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.visit_ident(ident);
-        walk_expr(self, lhs);
-        walk_expr(self, rhs);
+    fn visit_infix_func_call(&mut self, id: &'ast NodeId, ident: &'ast Ident<P>, lhs: &'ast Expr<P>, rhs: &'ast Expr<P>) {
+        walk_infix_func_call(self, id, ident, lhs, rhs);
     }
 
-    fn visit_bin_expr(&mut self, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.visit_op(op);
-        walk_expr(self, lhs);
-        walk_expr(self, rhs);
+    fn visit_bin_expr(&mut self, id: &'ast NodeId, op: &'ast Op<P>, lhs: &'ast Expr<P>, rhs: &'ast Expr<P>) {
+        walk_bin_expr(self, id, op, lhs, rhs);
     }
 
-    fn visit_func_call(&mut self, node: &FuncCall<P>) {
+    fn visit_func_call(&mut self, node: &'ast FuncCall<P>) {
         walk_func_call(self, node);
     }
     
-    fn visit_parenthesed(&mut self, node: &Expr<P>) {
+    fn visit_parenthesed(&mut self, node: &'ast Paren<P>) {
         walk_expr(self, node);
     }
 
-    fn visit_lit(&mut self, node: &Lit<P>) {
+    fn visit_lit(&mut self, node: &'ast Lit<P>) {
         walk_lit(self, node);
     }
 
@@ -71,23 +67,23 @@ pub trait Pass<P: Pointer>: Sized {
         self.nop()
     }
 
-    fn visit_ident(&mut self, _node: &Ident<P>) {
+    fn visit_ident(&mut self, _node: &'ast Ident<P>) {
         self.nop()
     }
 
-    fn visit_op(&mut self, _node: &Op<P>) {
+    fn visit_op(&mut self, _node: &'ast Op<P>) {
         self.nop()
     }
 
-    fn visit_type(&mut self, node: &Type<P>) {
+    fn visit_type(&mut self, node: &'ast Type<P>) {
         walk_type(self, node);
     }
 
-    fn visit_func_type(&mut self, node: &FuncType<P>) {
+    fn visit_func_type(&mut self, node: &'ast FuncType<P>) {
         walk_func_type(self, node);
     }
 
-    fn visit_lit_type(&mut self, _node: &LitType) {
+    fn visit_lit_type(&mut self, _node: &'ast LitType) {
         self.nop()
     }
 
@@ -95,18 +91,18 @@ pub trait Pass<P: Pointer>: Sized {
 }
 
 
-pub fn visit_ast<S: Source, P: Pass<S::Pointer>>(p: &mut P, ast: &AST<S>) {
+pub fn visit_ast<'ast, S: Source, P: Pass<'ast, S::Pointer>>(p: &mut P, ast: &'ast AST<S>) {
     p.visit_module(&ast.root);
 }
 
 
-pub fn walk_module<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Module<Ptr>) {
+pub fn walk_module<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Module<Ptr>) {
     for decl in &node.decl {
         v.visit_top_level_decl(decl);
     }
 }
 
-pub fn walk_top_level_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &TopLevelDecl<Ptr>) {
+pub fn walk_top_level_decl<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast TopLevelDecl<Ptr>) {
     match node.kind {
         TopLevelDeclKind::FunctionDef(ref func_def) => {
             v.visit_func_def(func_def);
@@ -120,7 +116,7 @@ pub fn walk_top_level_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &TopLeve
     }
 }
 
-pub fn walk_func_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDecl<Ptr>) {
+pub fn walk_func_decl<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast FuncDecl<Ptr>) {
     v.visit_ident(&node.ident);
     if let Some(ref ty) = node.ty {
         v.visit_type(ty);
@@ -133,7 +129,7 @@ pub fn walk_func_decl<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDecl<Ptr
 
 
 
-pub fn walk_func_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDef<Ptr>) {
+pub fn walk_func_def<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast FuncDef<Ptr>) {
     v.visit_func_decl(&node.decl); 
     for arg in &node.args {
         v.visit_func_arg(arg);
@@ -141,13 +137,13 @@ pub fn walk_func_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncDef<Ptr>)
     v.visit_expr(&node.body);
 }
 
-pub fn walk_func_attrs<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Vec<Ident<Ptr>>) {
+pub fn walk_func_attrs<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Vec<Ident<Ptr>>) {
     for attr in node {
         v.visit_func_attr(attr);
     }
 }
 
-pub fn walk_infix_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &InfixDef<Ptr>) {
+pub fn walk_infix_def<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast InfixDef<Ptr>) {
     // todo - for now skipping type
     // todo - what to do with the precedence
     v.visit_op(&node.op);
@@ -156,7 +152,7 @@ pub fn walk_infix_def<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &InfixDef<Ptr
     v.visit_expr(&node.body);
 }
 
-pub fn walk_expr<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Expr<Ptr>) {
+pub fn walk_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Expr<Ptr>) {
     match node.kind {
         ExprKind::FunctionCall(ref call) => {
             v.visit_func_call(call);
@@ -167,32 +163,45 @@ pub fn walk_expr<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Expr<Ptr>) {
         ExprKind::Identifier(ref ident) => {
             v.visit_ident(ident);
         },
-        ExprKind::Binary(ref op, ref lhs, ref rhs) => {
-            match op {
-                BinOp::Ident(ref ident) => v.visit_infix_func_call(ident, lhs, rhs),
-                BinOp::Op(ref op) => v.visit_bin_expr(op, lhs, rhs),
+        ExprKind::Binary(ref bin_call) => {
+            match bin_call.op {
+                // todo both are just bin call, how to do it? 
+                BinOp::Ident(ref ident) => v.visit_infix_func_call(bin_call),
+                BinOp::Op(ref op) => v.visit_bin_expr(bin_call),
             }
         },
-        ExprKind::Parenthesed(ref expr) => {
-            v.visit_parenthesed(expr);
+        ExprKind::Parenthesed(ref paren) => {
+            v.visit_parenthesed(paren);
         },
     }
 }
 
-pub fn walk_func_call<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncCall<Ptr>) {
+pub fn walk_infix_func_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, _id: &'ast NodeId, ident: &'ast Ident<Ptr>, lhs: &'ast Expr<Ptr>, rhs: &'ast Expr<Ptr>) {
+        v.visit_ident(ident);
+        walk_expr(v, lhs);
+        walk_expr(v, rhs);
+}
+
+pub fn walk_bin_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, _id: &'ast NodeId, op: &'ast Op<Ptr>, lhs: &'ast Expr<Ptr>, rhs: &'ast Expr<Ptr>) {
+        v.visit_op(op);
+        walk_expr(v, lhs);
+        walk_expr(v, rhs);
+}
+
+pub fn walk_func_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast FuncCall<Ptr>) {
     v.visit_expr(&node.lhs);
     for arg in &node.args {
         v.visit_expr(arg);
     }
 }
 
-pub fn walk_lit<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Lit<Ptr>) {
+pub fn walk_lit<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Lit<Ptr>) {
     match node.kind {
         LitKind::Int(val) => v.visit_int_lit(val),
     }
 }
 
-pub fn walk_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Type<Ptr>) {
+pub fn walk_type<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Type<Ptr>) {
     use TypeKind::*;
     match node.kind {
         Function(ref func_t) => v.visit_func_type(func_t),
@@ -200,7 +209,7 @@ pub fn walk_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &Type<Ptr>) {
     }
 }
 
-pub fn walk_func_type<Ptr: Pointer, P: Pass<Ptr>>(v: &mut P, node: &FuncType<Ptr>) {
+pub fn walk_func_type<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast FuncType<Ptr>) {
     for arg_t in &node.args {
         v.visit_type(arg_t);
     }
