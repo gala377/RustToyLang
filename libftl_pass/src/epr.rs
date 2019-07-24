@@ -66,7 +66,7 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
         }
     }
 
-    fn get_expr_prec(&mut self, expr: &Expr<S::Pointer>) -> usize {
+    fn get_expr_prec(&mut self, expr: &'a Expr<S::Pointer>) -> usize {
         let mut prec = InferPrec::new(&self.op);
         prec.visit_expr(expr);
         match prec.get() {
@@ -85,19 +85,18 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
     }
 }
 
-impl<'a, S: Source> MutPass<S::Pointer> for ExprPrecReassoc<'a, S> where S::Pointer: 'static {
+impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::Pointer: 'static {
 
-    fn visit_module(&mut self, node: &mut Module<S::Pointer>) {
+    fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
         let mut prec = InfixPrec::new();
         prec.visit_module(&node);
         self.op = prec.get();
     }
 
-    fn visit_bin_expr(&mut self, op: &mut Op<S::Pointer>, _lhs: &mut Expr<S::Pointer>, rhs: &mut Expr<S::Pointer>) {
-        let op_prec = self.get_op_prec(&op);
-        let rhs_prec = self.get_expr_prec(&rhs);
-        debug!("Op prec: {}, rhs prec: {}", op_prec, rhs_prec);
-        
+    fn visit_infix_op_call(&mut self, node: &'a mut InfixOpCall<S::Pointer>) {
+        let op_prec = self.get_op_prec(&node.op);
+        let rhs_prec = self.get_expr_prec(&node.rhs);
+        debug!("Op prec: {}, rhs prec: {}", op_prec, rhs_prec); 
     }
 
 }
@@ -125,7 +124,7 @@ impl InfixPrec {
     }
 }
 
-impl<P: Pointer> Pass<P> for InfixPrec {
+impl<P: Pointer> Pass<'_, P> for InfixPrec {
 
     fn visit_module(&mut self, node: &Module<P>) {
         self.clear();
@@ -161,17 +160,17 @@ impl<'a> InferPrec<'a> {
     }
 }
 
-impl<'a, P: Pointer> Pass<P> for InferPrec<'a> {
+impl<'a, P: Pointer> Pass<'a, P> for InferPrec<'a> {
 
-    fn visit_bin_expr(&mut self, op: &Op<P>, _lhs: &Expr<P>, _rhs: &Expr<P>) {
-        match self.op.get(&op.symbol) {
+    fn visit_infix_op_call(&mut self, node: &InfixOpCall<P>) {
+        match self.op.get(&node.op.symbol) {
             None => {
                 self.prec = None;
-                self.symbol = Some(op.symbol.clone());
+                self.symbol = Some(node.op.symbol.clone());
             },
             Some(prec) => {
                 self.prec = Some(*prec);
-                self.symbol = Some(op.symbol.clone());
+                self.symbol = Some(node.op.symbol.clone());
             },
         }
     }
@@ -184,7 +183,7 @@ impl<'a, P: Pointer> Pass<P> for InferPrec<'a> {
         self.prec = Some(usize::max_value());
     }
 
-    fn visit_parenthesed(&mut self, _: &Expr<P>) {
+    fn visit_parenthesed(&mut self, _: &Paren<P>) {
         self.prec = Some(usize::max_value());
     }
 
@@ -192,7 +191,7 @@ impl<'a, P: Pointer> Pass<P> for InferPrec<'a> {
         self.prec = Some(usize::max_value());
     }
 
-    fn visit_infix_func_call(&mut self, _ident: &Ident<P>, _lhs: &Expr<P>, _rhs: &Expr<P>) {
+    fn visit_infix_func_call(&mut self, _: &InfixFuncCall<P>) {
         self.prec = Some(usize::max_value());
     }
 }

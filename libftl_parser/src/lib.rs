@@ -454,28 +454,32 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     beg: lhs.span.clone().beg,
                     end: self.curr_ptr(),
                 },
-                kind: ast::ExprKind::Binary(
-                    ast::BinCall{
-                        id: self.next_node_id(),
-                        op: match op.kind {
-                            token::Kind::InfixIdent => ast::BinOp::Ident(
-                                ast::Ident{
-                                    id: self.next_node_id(),
-                                    symbol: sym,
-                                    span: op.span,
-                            }),
-                            token::Kind::Operator => ast::BinOp::Op(
-                                ast::Op {
-                                    id: self.next_node_id(),
-                                    symbol: sym,
-                                    span: op.span,
-                            }),
-                            _ => unreachable!(),
-                        },
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                    }
-                ),
+                kind: match op.kind {
+                    token::Kind::InfixIdent => ast::ExprKind::InfixFuncCall(
+                        ast::InfixFuncCall{
+                            id: self.next_node_id(),
+                            ident: ast::Ident{
+                                id: self.next_node_id(),
+                                symbol: sym,
+                                span: op.span,
+                            },
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                    }),
+                    token::Kind::Operator => ast::ExprKind::InfixOpCall(
+                        ast::InfixOpCall{
+                            id: self.next_node_id(),
+                            op: ast::Op {
+                                id: self.next_node_id(),
+                                symbol: sym,
+                                span: op.span,
+                            },
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            
+                    }),
+                    _ => unreachable!(),
+                } 
             }
         }
         Ok(lhs)

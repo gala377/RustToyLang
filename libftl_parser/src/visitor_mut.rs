@@ -47,24 +47,20 @@ pub trait MutPass<'ast, P: Pointer>: Sized {
         noop_expr(self, node);
     }
     
-    fn visit_infix_func_call(&mut self, _id: &'ast mut NodeId, ident: &'ast mut Ident<P>, lhs: &'ast mut Expr<P>, rhs: &'ast mut Expr<P>) {
-        self.visit_ident(ident);
-        noop_expr(self, lhs);
-        noop_expr(self, rhs);
+    fn visit_infix_func_call(&mut self, node: &'ast mut InfixFuncCall<P>) {
+        noop_infix_func_call(self, node);
     }
 
-    fn visit_bin_expr(&mut self, _id: &'ast mut NodeId, op: &'ast mut Op<P>, lhs: &'ast mut Expr<P>, rhs: &'ast mut Expr<P>) {
-        self.visit_op(op);
-        noop_expr(self, lhs);
-        noop_expr(self, rhs);
+    fn visit_infix_op_call(&mut self, node: &'ast mut InfixOpCall<P>) {
+        noop_infix_op_call(self, node);
     }
 
     fn visit_func_call(&mut self, node: &'ast mut FuncCall<P>) {
         noop_func_call(self, node);
     }
     
-    fn visit_parenthesed(&mut self, _id: &'ast mut NodeId, node: &'ast mut Expr<P>) {
-        noop_expr(self, node);
+    fn visit_parenthesed(&mut self, node: &'ast mut Paren<P>) {
+        noop_paren(self, node);
     }
 
     fn visit_lit(&mut self, node: &'ast mut Lit<P>) {
@@ -171,14 +167,14 @@ pub fn noop_expr<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'a
         ExprKind::Identifier(ref mut ident) => {
             v.visit_ident(ident);
         },
-        ExprKind::Binary(ref mut id, ref mut op, ref mut lhs, ref mut rhs) => {
-            match op {
-                BinOp::Ident(ref mut ident) => v.visit_infix_func_call(id, ident, lhs, rhs),
-                BinOp::Op(ref mut op) => v.visit_bin_expr(id, op, lhs, rhs),
-            }
+        ExprKind::InfixOpCall(ref mut infix_op_call) => {
+            v.visit_infix_op_call(infix_op_call)
         },
-        ExprKind::Parenthesed(ref mut id, ref mut expr) => {
-            v.visit_parenthesed(id, expr);
+        ExprKind::InfixFuncCall(ref mut infix_call) => {
+            v.visit_infix_func_call(infix_call);
+        },
+        ExprKind::Parenthesed(ref mut paren) => {
+            v.visit_parenthesed(paren);
         },
     }
 }
@@ -189,6 +185,22 @@ pub fn noop_func_call<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node
         v.visit_expr(arg);
     }
 }
+
+pub fn noop_infix_func_call<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut InfixFuncCall<Ptr>) {
+    v.visit_ident(&mut node.ident);
+    v.visit_expr(&mut node.lhs);
+    v.visit_expr(&mut node.rhs);
+}
+
+pub fn noop_infix_op_call<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut InfixOpCall<Ptr>) {
+    v.visit_op(&mut node.op);
+    v.visit_expr(&mut node.lhs);
+    v.visit_expr(&mut node.rhs);
+}
+
+pub fn noop_paren<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Paren<Ptr>) {
+    v.visit_expr(&mut node.expr);  
+} 
 
 pub fn noop_lit<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Lit<Ptr>) {
     match node.kind {

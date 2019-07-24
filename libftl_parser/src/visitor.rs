@@ -43,12 +43,12 @@ pub trait Pass<'ast, P: Pointer>: Sized {
         walk_expr(self, node);
     }
     
-    fn visit_infix_func_call(&mut self, id: &'ast NodeId, ident: &'ast Ident<P>, lhs: &'ast Expr<P>, rhs: &'ast Expr<P>) {
-        walk_infix_func_call(self, id, ident, lhs, rhs);
+    fn visit_infix_func_call(&mut self, node: &'ast InfixFuncCall<P>) {
+        walk_infix_func_call(self, node);
     }
 
-    fn visit_bin_expr(&mut self, id: &'ast NodeId, op: &'ast Op<P>, lhs: &'ast Expr<P>, rhs: &'ast Expr<P>) {
-        walk_bin_expr(self, id, op, lhs, rhs);
+    fn visit_infix_op_call(&mut self, node: &'ast InfixOpCall<P>) {
+        walk_infix_op_call(self, node);
     }
 
     fn visit_func_call(&mut self, node: &'ast FuncCall<P>) {
@@ -56,7 +56,7 @@ pub trait Pass<'ast, P: Pointer>: Sized {
     }
     
     fn visit_parenthesed(&mut self, node: &'ast Paren<P>) {
-        walk_expr(self, node);
+        walk_paren_expr(self, node);
     }
 
     fn visit_lit(&mut self, node: &'ast Lit<P>) {
@@ -163,12 +163,11 @@ pub fn walk_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast 
         ExprKind::Identifier(ref ident) => {
             v.visit_ident(ident);
         },
-        ExprKind::Binary(ref bin_call) => {
-            match bin_call.op {
-                // todo both are just bin call, how to do it? 
-                BinOp::Ident(ref ident) => v.visit_infix_func_call(bin_call),
-                BinOp::Op(ref op) => v.visit_bin_expr(bin_call),
-            }
+        ExprKind::InfixOpCall(ref infix_op_call) => {
+            v.visit_infix_op_call(infix_op_call);
+        },
+        ExprKind::InfixFuncCall(ref infix_call) => {
+            v.visit_infix_func_call(infix_call);
         },
         ExprKind::Parenthesed(ref paren) => {
             v.visit_parenthesed(paren);
@@ -176,16 +175,20 @@ pub fn walk_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast 
     }
 }
 
-pub fn walk_infix_func_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, _id: &'ast NodeId, ident: &'ast Ident<Ptr>, lhs: &'ast Expr<Ptr>, rhs: &'ast Expr<Ptr>) {
-        v.visit_ident(ident);
-        walk_expr(v, lhs);
-        walk_expr(v, rhs);
+pub fn walk_paren_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Paren<Ptr>) {
+    v.visit_expr(&node.expr);
 }
 
-pub fn walk_bin_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, _id: &'ast NodeId, op: &'ast Op<Ptr>, lhs: &'ast Expr<Ptr>, rhs: &'ast Expr<Ptr>) {
-        v.visit_op(op);
-        walk_expr(v, lhs);
-        walk_expr(v, rhs);
+pub fn walk_infix_func_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast InfixFuncCall<Ptr>) {
+    v.visit_ident(&node.ident);
+    v.visit_expr(&node.lhs);
+    v.visit_expr(&node.rhs);
+}
+
+pub fn walk_infix_op_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast InfixOpCall<Ptr>) {
+    v.visit_op(&node.op);
+    v.visit_expr(&node.lhs);
+    v.visit_expr(&node.rhs);
 }
 
 pub fn walk_func_call<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast FuncCall<Ptr>) {

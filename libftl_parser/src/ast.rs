@@ -77,7 +77,8 @@ pub enum ExprKind<T: Pointer> {
     FunctionCall(FuncCall<T>),
     Literal(Lit<T>),
     Identifier(Ident<T>),
-    Binary(BinCall<T>),
+    InfixFuncCall(InfixFuncCall<T>),
+    InfixOpCall(InfixOpCall<T>),
     // We need it because parser doesn't
     // know about precedence but the 
     // later passes need to know about them.
@@ -95,9 +96,16 @@ pub struct Paren<T: Pointer> {
     pub expr: Box<Expr<T>>,
 }
 
-pub struct BinCall<T: Pointer> {
+pub struct InfixFuncCall<T: Pointer> {
     pub id: NodeId,
-    pub op: BinOp<T>,
+    pub ident: Ident<T>,
+    pub lhs: Box<Expr<T>>,
+    pub rhs: Box<Expr<T>>,
+}
+
+pub struct InfixOpCall<T: Pointer> {
+    pub id: NodeId,
+    pub op: Op<T>,
     pub lhs: Box<Expr<T>>,
     pub rhs: Box<Expr<T>>,
 }
@@ -110,11 +118,6 @@ pub struct Lit<T: Pointer> {
 
 pub enum LitKind {
      Int(u64),
-}
-
-pub enum BinOp<T: Pointer> {
-    Ident(Ident<T>),
-    Op(Op<T>),
 }
 
 pub struct Op<T: Pointer> {

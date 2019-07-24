@@ -157,13 +157,13 @@ impl<P: Pointer> Pass<'_, P> for Printer {
         walk_expr(self, node);
     }
     
-    fn visit_infix_func_call(&mut self, _id: &NodeId, ident: &Ident<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.add(&format!("InfCall {}", ident.symbol));
+    fn visit_infix_func_call(&mut self, node: &InfixFuncCall<P>) {
+        self.add(&format!("InfCall {}", node.ident.symbol));
         self.start_line();
         self.indent += 1;
-        walk_expr(self, lhs);
+        self.visit_expr(&node.lhs);
         self.start_line_at(self.indent-1);
-        walk_expr(self, rhs);
+        self.visit_expr(&node.rhs);
         self.indent -= 1;
     }
 
@@ -171,30 +171,30 @@ impl<P: Pointer> Pass<'_, P> for Printer {
         self.add(&format!("FuncCall"));
         self.start_line();
         self.indent += 1;
-        walk_expr(self, &node.lhs);
+        self.visit_expr(&node.lhs);
         for (i, arg) in node.args.iter().enumerate() {
             if i == node.args.len()-1 {
                 self.stop_line_at(self.indent-1);
             }
-            walk_expr(self, arg);
+            self.visit_expr(arg);
         }
         self.indent -= 1;
     }
 
-    fn visit_bin_expr(&mut self, _id: &NodeId, op: &Op<P>, lhs: &Expr<P>, rhs: &Expr<P>) {
-        self.add(&format!("BinOp {}", op.symbol));
+    fn visit_infix_op_call(&mut self, node: &InfixOpCall<P>) {
+        self.add(&format!("BinOp {}", node.op.symbol));
         self.start_line();
         self.indent += 1;
-        walk_expr(self, lhs);
+        self.visit_expr(&node.lhs);
         self.stop_line_at(self.indent-1);
-        walk_expr(self, rhs);
+        self.visit_expr(&node.rhs);
         self.indent -= 1;
     }
 
-    fn visit_parenthesed(&mut self, _id: &NodeId, node: &Expr<P>) {
+    fn visit_parenthesed(&mut self,  node: &Paren<P>) {
         self.add("Parenthesed");
         self.indent += 1;
-        walk_expr(self, node);
+        self.visit_expr(&node.expr);
         self.indent -= 1;
     }
 
