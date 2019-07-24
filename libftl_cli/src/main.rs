@@ -12,6 +12,7 @@ use ftl_utility::RcRef;
 use ftl_parser::{
     Parser,
 };
+use ftl_pass::epr::ExprPrecReassoc;
 
 mod helpers;
 mod phase;
@@ -33,6 +34,8 @@ static SOURCE: &str = r#"
     def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
 
     infix 5 @@ a b: a + b
+
+    def test: 2 + 2 * 2 
 "#;
 
 fn main() -> io::Result<()> {
