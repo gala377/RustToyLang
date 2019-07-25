@@ -34,7 +34,7 @@ pub trait Pass<'ast, P: Pointer>: Sized {
         self.nop()
     }
     
-    fn visit_func_attr(&mut self, _node: &'ast Ident<P>) {
+    fn visit_func_attr(&mut self, _node: &'ast FuncAttr<P>) {
         // todo walk, when its more than just an identifier        
         self.nop()
     }
@@ -137,7 +137,7 @@ pub fn walk_func_def<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'
     v.visit_expr(&node.body);
 }
 
-pub fn walk_func_attrs<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Vec<Ident<Ptr>>) {
+pub fn walk_func_attrs<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Vec<FuncAttr<Ptr>>) {
     for attr in node {
         v.visit_func_attr(attr);
     }

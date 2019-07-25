@@ -38,7 +38,7 @@ pub enum TopLevelDeclKind<T: Pointer> {
 pub struct FuncDecl<T: Pointer> {
     pub id: NodeId,
     pub ty: Option<Type<T>>, // for now, we dont have infering yet 
-    pub attrs: Vec<Ident<T>>,
+    pub attrs: Vec<FuncAttr<T>>,
     pub ident: Ident<T>,
 }
 
@@ -66,6 +66,10 @@ pub struct FuncArg<T: Pointer> {
     pub span: Span<T>
 }
 
+pub struct FuncAttr<T: Pointer> {
+    pub id: NodeId,
+    pub ident: Ident<T>, 
+}
 
 pub struct Expr<T: Pointer> {
     pub id: NodeId,

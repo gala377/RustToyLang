@@ -121,7 +121,7 @@ impl<P: Pointer> Pass<'_, P> for Printer {
              }
         );
         for attr in &node.attrs {
-            repr += &format!(" {},", &attr.symbol)
+            repr += &format!(" {},", &attr.ident.symbol)
         }
         repr += ")";
         self.add(&repr);

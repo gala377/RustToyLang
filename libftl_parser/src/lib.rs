@@ -301,12 +301,16 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
-    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::Ident<S::Pointer>>, S::Pointer> {
+    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
         match self.parse_token(token::Kind::LeftParenthesis) {
             Ok(_) => {
                 let mut attrs = Vec::new();
                 while let Ok(attr) = self.parse_ident() {
-                    attrs.push(attr);
+                    attrs.push(
+                        ast::FuncAttr{
+                            id: self.next_node_id(),
+                            ident: attr,
+                    });
                 }
                 let beg = self.curr_ptr();
                 match self.parse_token(token::Kind::RightParenthesis) {
