@@ -17,6 +17,7 @@ use ftl_parser::{
 use ftl_pass::epr::ExprPrecReassoc;
 use ftl_parser::visitor_mut::visit_ast_mut;
 use ftl_parser::visitor_mut::MutPass;
+use ftl_pass::dm::DeclarationMerge;
 // test
 
 mod helpers;
@@ -46,7 +47,9 @@ static SOURCE: &str = r#"
 
     def test: 2 + 2 * 2 
     def test2: 1 `foo 2 `foo 3 `foo 4
-    def test3: 2+2*2*2*2*2*2
+    def test3 (test4 test1) : 2+2*2*2*2*2*2
+
+    decl test3 (test1 test2) : int
 "#;
 
 fn main() -> io::Result<()> {
@@ -92,7 +95,12 @@ fn main() -> io::Result<()> {
         let mut epr = ExprPrecReassoc::new(&mut sess_ref);
         visit_ast_mut(&mut epr, &mut ast);
     }
-    
+    {
+        let mut sess_ref = sess.borrow_mut();
+        let mut dm = DeclarationMerge::new(&mut sess_ref);
+        visit_ast_mut(&mut dm, &mut ast);   
+    }
+
     print_green("Done...");
 
     let mut ppp = phase::ppp::PrettyPrint{};

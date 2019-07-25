@@ -35,6 +35,7 @@ pub enum TopLevelDeclKind<T: Pointer> {
     InfixDef(InfixDef<T>),
 }
 
+#[derive(Clone)]
 pub struct FuncDecl<T: Pointer> {
     pub id: NodeId,
     pub ty: Option<Type<T>>, // for now, we dont have infering yet 
@@ -66,6 +67,7 @@ pub struct FuncArg<T: Pointer> {
     pub span: Span<T>
 }
 
+#[derive(Clone)]
 pub struct FuncAttr<T: Pointer> {
     pub id: NodeId,
     pub ident: Ident<T>, 
@@ -151,23 +153,27 @@ pub struct Ident<T: Pointer> {
 /// Types
 
 
+#[derive(Clone)]
 pub struct Type<T: Pointer> {
     pub id: NodeId,
     pub kind: TypeKind<T>,
     pub span: Span<T>,
 }
 
+#[derive(Clone)]
 pub enum TypeKind<T: Pointer> {
     Function(FuncType<T>),
     Literal(LitType)    
 }
 
+#[derive(Clone)]
 pub struct FuncType<T: Pointer> {
     pub id: NodeId,
     pub ret: Box<Type<T>>,
     pub args: Vec<Box<Type<T>>>,
 }
 
+#[derive(Clone)]
 pub enum LitType {
     Int, 
     Void,
