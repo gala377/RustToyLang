@@ -1,4 +1,7 @@
-use log::debug;
+use log::{
+    debug,
+    trace,
+};
 
 use std::collections::HashMap;
 
@@ -46,40 +49,74 @@ impl<P: Pointer> LangError for UnknownPrecedense<P> {
 /// Mutable pass reorganizing infix operator calls based 
 /// on their precedence. 
 pub struct ExprPrecReassoc<'a, S: Source> {
-    op: HashMap<String, usize>,
     sess: &'a mut Session<S>,
-
-    result: PassResult,
 }
 
-/// This is just a hack because we can't
-/// traverse the tree in the down top fashion 
-/// (borrow checker doesn't allow this) so we cannot 
-/// surface low precedence operators to the top. 
-/// The same happens when we try to use the loop for multiple
-/// iterations. Because of this we need to run the pass
-/// few times from the top level which is really bad and 
-/// will need fixing in the future.
-pub enum PassResult {
+impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
+    
+    // Returns new ExprPrecReassoc pass ready to be run on 
+    // the syntax tree.
+    pub fn new(sess: &'a mut Session<S>) -> Self {
+        debug!("Running EPR Pass");
+        ExprPrecReassoc{
+            sess,
+        }
+    }
+}
+impl <'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::Pointer: 'static {
+
+    fn visit_module(&mut self, node: &mut Module<S::Pointer>) {
+        loop {
+            let mut epr = ExprReassocIteration::new(&mut self.sess);
+            epr.visit_module(node);
+            if let IterationRes::Done = epr.result() {
+                break;
+            }
+        }
+    }
+}
+
+/// Single iteration of reassociation. 
+/// In its run it can only surface expressions one level to the top
+/// if there is some deeply nested, low precedence expression 
+/// then multiple runs of this pass are needed to fully 
+/// complete transformation.
+/// 
+/// To know if next iteration is needed 
+/// method `result` needs to be called.
+/// If next iteration is needed this pass should be 
+/// created anew and not reused. 
+struct ExprReassocIteration<'a, S: Source> {
+    op: HashMap<String, usize>,
+    sess: &'a mut Session<S>,
+    result: IterationRes,
+}
+
+/// Tells us if last iteration of the reassociacion pass
+/// was the final one or do we need to run one more.
+enum IterationRes {
     RunAgain, 
     Done,
 }
 
-impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
-    /// Returns new ExprPrecReassoc pass ready to 
+impl<'a, S: Source>  ExprReassocIteration<'a, S> where S::Pointer: 'static {
+    /// Returns new ExprReassocIteration pass ready to 
     /// visit a syntax tree.
     /// 
     /// Further initialization is done upon visiting 
-    /// sytaxes tree module node.
+    /// syntaxes tree module node.
     pub fn new(sess: &'a mut Session<S>) -> Self {
-        Self{
+        ExprReassocIteration{
             op: HashMap::new(),
             sess,
-            result: PassResult::Done,
+            result: IterationRes::Done,
         }
     }
 
-    pub fn result(self) -> PassResult {
+    /// After visiting syntax tree result tells
+    /// if the iteration was the last one or do
+    /// we need to run another one.
+    pub fn result(self) -> IterationRes {
         self.result
     }
 
@@ -119,13 +156,16 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
         }
     }
 
+    /// Checks if the precedenses for the current node 
+    /// and its lhs are reversed if so swaps them and returns true
+    /// otherwise returns false.
     fn try_prec_switch(&mut self, node: &mut Expr<S::Pointer>) -> bool{
         // FIXME: Refactor
         match node.kind {
             ExprKind::InfixOpCall(ref infix_call) => {
                 let op_prec = self.get_op_prec(&infix_call.op);
                 let lhs_prec = self.get_expr_prec(&infix_call.lhs);
-                debug!("Op {}, prec: {}, lhs_prec: {}", infix_call.op.symbol, op_prec, lhs_prec); 
+                trace!("Op {}, prec: {}, lhs_prec: {}", infix_call.op.symbol, op_prec, lhs_prec); 
                 if lhs_prec < op_prec {
                     let mut new_kind = infix_call.lhs.kind.clone();
                     if let ExprKind::InfixOpCall(ref mut new_infix_call) = new_kind {
@@ -149,7 +189,7 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
             ExprKind::InfixFuncCall(ref infix_call) => {
                 let expr_prec = self.get_expr_prec(&node);
                 let lhs_prec = self.get_expr_prec(&infix_call.lhs);
-                debug!("Op {}, prec: {}, lhs_prec: {}", infix_call.ident.symbol, expr_prec, lhs_prec); 
+                trace!("Op {}, prec: {}, lhs_prec: {}", infix_call.ident.symbol, expr_prec, lhs_prec); 
                 if lhs_prec < expr_prec {
                     let mut new_kind = infix_call.lhs.kind.clone();
                     if let ExprKind::InfixOpCall(ref mut new_infix_call) = new_kind {
@@ -175,10 +215,10 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
     }
 }
 
-impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::Pointer: 'static {
+impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprReassocIteration<'a, S> where S::Pointer: 'static {
 
     fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
-        debug!("Running EPR Pass");
+        debug!("Running EPR Pass iteration");
         let mut prec = InfixPrec::new();
         prec.visit_module(&node);
         self.op = prec.get();
@@ -188,7 +228,7 @@ impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::
 
     fn visit_expr(&mut self, node: &'a mut Expr<S::Pointer>) {
         if self.try_prec_switch(node) {
-            self.result = PassResult::RunAgain;
+            self.result = IterationRes::RunAgain;
             // FIXME: does it even matter?
             self.visit_expr(node);
         } else {

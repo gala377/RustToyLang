@@ -87,15 +87,12 @@ fn main() -> io::Result<()> {
     print_line();
     print_red("Running EPR pass...");
     
-    loop {
+    {
         let mut sess_ref = sess.borrow_mut();
         let mut epr = ExprPrecReassoc::new(&mut sess_ref);
         visit_ast_mut(&mut epr, &mut ast);
-        if let ftl_pass::epr::PassResult::Done = epr.result() {
-            break;
-        }
     }
-
+    
     print_green("Done...");
 
     let mut ppp = phase::ppp::PrettyPrint{};
