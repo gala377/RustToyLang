@@ -71,12 +71,14 @@ pub struct FuncAttr<T: Pointer> {
     pub ident: Ident<T>, 
 }
 
+#[derive(Clone)]
 pub struct Expr<T: Pointer> {
     pub id: NodeId,
     pub kind: ExprKind<T>,
     pub span: Span<T>,
 }
 
+#[derive(Clone)]
 pub enum ExprKind<T: Pointer> {
     FunctionCall(FuncCall<T>),
     Literal(Lit<T>),
@@ -89,17 +91,20 @@ pub enum ExprKind<T: Pointer> {
     Parenthesed(Paren<T>), 
 }
 
+#[derive(Clone)]
 pub struct FuncCall<T: Pointer> {
     pub id: NodeId,
     pub lhs: Box<Expr<T>>,
     pub args: Vec<Box<Expr<T>>>,
 }
 
+#[derive(Clone)]
 pub struct Paren<T: Pointer> {
     pub id: NodeId,
     pub expr: Box<Expr<T>>,
 }
 
+#[derive(Clone)]
 pub struct InfixFuncCall<T: Pointer> {
     pub id: NodeId,
     pub ident: Ident<T>,
@@ -107,6 +112,7 @@ pub struct InfixFuncCall<T: Pointer> {
     pub rhs: Box<Expr<T>>,
 }
 
+#[derive(Clone)]
 pub struct InfixOpCall<T: Pointer> {
     pub id: NodeId,
     pub op: Op<T>,
@@ -114,22 +120,26 @@ pub struct InfixOpCall<T: Pointer> {
     pub rhs: Box<Expr<T>>,
 }
 
+#[derive(Clone)]
 pub struct Lit<T: Pointer> {
     pub id: NodeId,
     pub kind: LitKind,
     pub span: Span<T>,
 }
 
+#[derive(Clone)]
 pub enum LitKind {
      Int(u64),
 }
 
+#[derive(Clone)]
 pub struct Op<T: Pointer> {
     pub id: NodeId, 
     pub symbol: String,
     pub span: Span<T>,
 }
 
+#[derive(Clone)]
 pub struct Ident<T: Pointer> { 
     pub id: NodeId,
     pub symbol: String,

@@ -12,7 +12,12 @@ use ftl_utility::RcRef;
 use ftl_parser::{
     Parser,
 };
+
+// test
 use ftl_pass::epr::ExprPrecReassoc;
+use ftl_parser::visitor_mut::visit_ast_mut;
+use ftl_parser::visitor_mut::MutPass;
+// test
 
 mod helpers;
 mod phase;
@@ -24,18 +29,23 @@ static SOURCE: &str = r#"
     decl nop (lang_nop) : void
     
     decl add int int (lang_add inline) : int
-    infix 5 + a b: @add a b
+    decl mult int int (lang_mult) : int 
+    
+    infix 5 @@ a b: a + b
+    infix 10 $ func expr: @func expr  
+    infix 50 - a b: @sub a b 
+    infix 50 + a b: @add a b
+    infix 100 * a b: @mult a b
 
     decl foo int int: int
     def foo a b: a + b
 
-    def bar: 1 -- 2 <=> 3 `foo_bar 4 $ 5 % 0
+    def bar: 1 - 2 + 3 `foo_bar 4 $ 5 * 0
     
     def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
 
-    infix 5 @@ a b: a + b
-
     def test: 2 + 2 * 2 
+    def test2: 1 `foo 2 `foo 3 `foo 4
 "#;
 
 fn main() -> io::Result<()> {
@@ -72,6 +82,21 @@ fn main() -> io::Result<()> {
     
     let mut ppp = phase::ppp::PrettyPrint{};
     ppp.run_wrapped(&mut ast);
+
+    print_line();
+    print_red("Running EPR pass...");
+    
+    {
+        let mut sess_ref = sess.borrow_mut();
+        let mut epr = ExprPrecReassoc::new(&mut sess_ref);
+        visit_ast_mut(&mut epr, &mut ast);
+    }
+    print_green("Done...");
+
+    let mut ppp = phase::ppp::PrettyPrint{};
+    ppp.run_wrapped(&mut ast);
+
+    print_line();
 
     print_errors(&emmiter)?;
     
