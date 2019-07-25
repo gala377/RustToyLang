@@ -48,6 +48,21 @@ impl<P: Pointer> LangError for UnknownPrecedense<P> {
 pub struct ExprPrecReassoc<'a, S: Source> {
     op: HashMap<String, usize>,
     sess: &'a mut Session<S>,
+
+    result: PassResult,
+}
+
+/// This is just a hack because we can't
+/// traverse the tree in the down top fashion 
+/// (borrow checker doesn't allow this) so we cannot 
+/// surface low precedence operators to the top. 
+/// The same happens when we try to use the loop for multiple
+/// iterations. Because of this we need to run the pass
+/// few times from the top level which is really bad and 
+/// will need fixing in the future.
+pub enum PassResult {
+    RunAgain, 
+    Done,
 }
 
 impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
@@ -60,7 +75,12 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
         Self{
             op: HashMap::new(),
             sess,
+            result: PassResult::Done,
         }
+    }
+
+    pub fn result(self) -> PassResult {
+        self.result
     }
 
     /// Returns precedence for the given operator. 
@@ -100,6 +120,7 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
     }
 
     fn try_prec_switch(&mut self, node: &mut Expr<S::Pointer>) -> bool{
+        // FIXME: Refactor
         match node.kind {
             ExprKind::InfixOpCall(ref infix_call) => {
                 let op_prec = self.get_op_prec(&infix_call.op);
@@ -126,10 +147,10 @@ impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
                 }
             },
             ExprKind::InfixFuncCall(ref infix_call) => {
-                let op_prec = self.get_expr_prec(&node);
+                let expr_prec = self.get_expr_prec(&node);
                 let lhs_prec = self.get_expr_prec(&infix_call.lhs);
-                debug!("Op {}, prec: {}, lhs_prec: {}", infix_call.ident.symbol, op_prec, lhs_prec); 
-                if lhs_prec < op_prec {
+                debug!("Op {}, prec: {}, lhs_prec: {}", infix_call.ident.symbol, expr_prec, lhs_prec); 
+                if lhs_prec < expr_prec {
                     let mut new_kind = infix_call.lhs.kind.clone();
                     if let ExprKind::InfixOpCall(ref mut new_infix_call) = new_kind {
                         new_infix_call.rhs = Box::new(Expr{
@@ -167,6 +188,8 @@ impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::
 
     fn visit_expr(&mut self, node: &'a mut Expr<S::Pointer>) {
         if self.try_prec_switch(node) {
+            self.result = PassResult::RunAgain;
+            // FIXME: does it even matter?
             self.visit_expr(node);
         } else {
             noop_expr(self, node);
