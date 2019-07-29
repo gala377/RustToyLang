@@ -1,2 +1,5 @@
-Need to write reasocc pass to have 
-precedens set for operators
+
+Expr type deduciton pass that fills types 
+for the epty func decl. 
+
+Function decls verifier.

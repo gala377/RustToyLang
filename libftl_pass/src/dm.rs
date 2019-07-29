@@ -1,38 +1,26 @@
-// FIXME: WIP 
 use log::debug;
 
-use std::collections::{
-    HashMap,
-};
+use std::collections::HashMap;
 
 use ftl_parser::visitor::*;
 use ftl_parser::visitor_mut::*;
 use ftl_parser::ast::*;
 
-use ftl_source::{
-    Pointer,
-    Source,
-};
-
-use ftl_session::Session;
+use ftl_source::Pointer;
 
 
-pub struct DeclarationMerge<'s, S: Source> {
-    sess: &'s mut Session<S>,
-}
+pub struct DeclarationMerge;
 
-impl<'a, 's, S: Source> DeclarationMerge<'s, S> {
-    pub fn new(sess: &'s mut Session<S>) -> Self {
-        Self{
-            sess,
-        }
+impl DeclarationMerge {
+    pub fn new() -> Self {
+        Self{}
     }
 }
 
-impl<'a, 's, S: Source> MutPass<'a, S::Pointer> for DeclarationMerge<'s, S> where S::Pointer: 'static {
+impl<'a, P: Pointer> MutPass<'a, P> for DeclarationMerge {
 
-    fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
-        let mut merger = DefMerger::new(&mut self.sess);
+    fn visit_module(&mut self, node: &'a mut Module<P>) {
+        let mut merger = DefMerger::new();
         merger.visit_module(node);
         let decls_to_rem = merger.get();
         let mut remover = DeclRemover::new(decls_to_rem.values().map(|x| {x.id}).collect());
@@ -40,38 +28,33 @@ impl<'a, 's, S: Source> MutPass<'a, S::Pointer> for DeclarationMerge<'s, S> wher
     }
 }
 
-struct DefMerger<'s, S: Source> {
-    decls: HashMap<String, FuncDecl<S::Pointer>>,
-    sess: &'s mut Session<S>,
+struct DefMerger<P: Pointer> {
+    decls: HashMap<String, FuncDecl<P>>,
 }
 
-impl<'a, 's, S: Source> DefMerger<'s, S> {
-    pub fn new(sess: &'s mut Session<S>) -> Self {
+impl<P: Pointer> DefMerger<P> {
+    pub fn new() -> Self {
         Self{
             decls: HashMap::new(),
-            sess,
         }
     }
 
-    fn merge(decl: &FuncDecl<S::Pointer>, def: &mut FuncDef<S::Pointer>) {
+    fn merge(decl: &FuncDecl<P>, def: &mut FuncDef<P>) {
         def.decl.attrs.extend_from_slice(&decl.attrs);
         def.decl.attrs.sort_by(|a, b| { a.ident.symbol.cmp(&b.ident.symbol) });
         def.decl.attrs.dedup_by(|a, b| { a.ident.symbol == b.ident.symbol });
 
         def.decl.ty = decl.ty.clone();
-        // FIXME: check if the type corresponds to the definition arguments
-        // thats what we need session for actually, because this is where an 
-        // error can occur.
     }
 
-    fn get(self) -> HashMap<String, FuncDecl<S::Pointer>> {
+    fn get(self) -> HashMap<String, FuncDecl<P>> {
         self.decls
     }
 }
 
-impl<'a, 's, S: Source> MutPass<'a, S::Pointer> for DefMerger<'s, S> where S::Pointer: 'static {
+impl<'a, P: Pointer> MutPass<'a, P> for DefMerger<P> {
 
-    fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
+    fn visit_module(&mut self, node: &'a mut Module<P>) {
         let mut decls = DeclCollector::new();
         decls.visit_module(node);
         self.decls = decls.get();
@@ -86,7 +69,7 @@ impl<'a, 's, S: Source> MutPass<'a, S::Pointer> for DefMerger<'s, S> where S::Po
         });
     }
 
-    fn visit_func_def(&mut self, node: &'a mut FuncDef<S::Pointer>) {
+    fn visit_func_def(&mut self, node: &'a mut FuncDef<P>) {
         if let Some(ref mut decl) = self.decls.get_mut(&node.decl.ident.symbol) {
             Self::merge(&decl, node);
             decl.attrs.push(FuncAttr{
