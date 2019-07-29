@@ -1,0 +1,9 @@
+Document all public API 
+
+Inluding modules. 
+Remember that modules are documented with //! 
+while other items are documented with /// 
+
+Whats more remeber about sections 
+like # Panics # Errors and # Examples 
+and code snippets
