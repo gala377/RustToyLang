@@ -16,7 +16,6 @@ use ftl_parser::{
 // test
 use ftl_pass::epr::ExprPrecReassoc;
 use ftl_parser::visitor_mut::visit_ast_mut;
-use ftl_parser::visitor_mut::MutPass;
 use ftl_pass::dm::DeclarationMerge;
 // test
 
@@ -96,8 +95,7 @@ fn main() -> io::Result<()> {
         visit_ast_mut(&mut epr, &mut ast);
     }
     {
-        let mut sess_ref = sess.borrow_mut();
-        let mut dm = DeclarationMerge::new(&mut sess_ref);
+        let mut dm = DeclarationMerge::new();
         visit_ast_mut(&mut dm, &mut ast);   
     }
 
