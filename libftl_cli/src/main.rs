@@ -116,7 +116,7 @@ fn main() -> io::Result<()> {
 }
 
 fn create_sess() -> RcRef<Session<ftl_source::string::String>> {
-    print!("\n");
+    println!();
     print_red("🦊 Compilation starts...");
     print_line();    
     print_red("🦒 Creating source and session...");

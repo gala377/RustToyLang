@@ -10,6 +10,7 @@ use ftl_source::Pointer;
 
 /// Pretty prints visited syntax tree. 
 /// UTF-8 support in terminal is required. 
+#[derive(Default)]
 pub struct Printer {
     res: String,
 
@@ -191,7 +192,7 @@ impl<P: Pointer> Pass<'_, P> for Printer {
     }
 
     fn visit_func_call(&mut self, node: &FuncCall<P>) {
-        self.add(&format!("FuncCall"));
+        self.add("FuncCall");
         self.start_line();
         self.indent += 1;
         self.visit_expr(&node.lhs);

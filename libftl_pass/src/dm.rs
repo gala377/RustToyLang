@@ -8,7 +8,7 @@ use ftl_parser::ast::*;
 
 use ftl_source::Pointer;
 
-
+#[derive(Default)]
 pub struct DeclarationMerge;
 
 impl DeclarationMerge {
@@ -149,7 +149,7 @@ impl<'a, P: Pointer> MutPass<'a, P> for DeclRemover {
                     return false;
                 }
             }
-            return true;
+            true
         });
     }
 

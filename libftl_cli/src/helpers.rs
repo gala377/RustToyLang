@@ -12,7 +12,7 @@ pub fn print_green(s: &str) {
 }
 
 pub fn print_line() {
-    print!("{}{}\n", style::Bold, color::Fg(color::Yellow));
+    println!("{}{}", style::Bold, color::Fg(color::Yellow));
     for _ in 0..100 {
         print!("=");
     }
