@@ -1,4 +1,0 @@
-Expr type deduciton pass that fills types 
-for the epty func decl. 
-
-Function decls verifier.

@@ -31,9 +31,7 @@ pub struct Parser<S: Source> {
 
 impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
-    //
     // Public interface 
-    //
 
     pub fn new(lexer: Lexer<S>, sess: RcRef<Session<S>>) -> Self {
         Self {
@@ -50,9 +48,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
-    //
     // Parsing methods
-    //
 
     fn parse_module(&mut self) -> PRes<ast::Module<S::Pointer>, S::Pointer> {
         let mut module = ast::Module{ id: self.next_node_id(), decl: Vec::new() };
@@ -104,11 +100,9 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Err(err) = self.parse_token(token::Kind::InfixDef) {
-            return Err(err);
-        }
-        let precedence = match self.parse_int_lit() {
-            Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val,
+        self.parse_token(token::Kind::InfixDef)?;
+        let precedence: usize = match self.parse_int_lit() {
+            Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val as usize,
             Err(ParseErr::NotThisItem(tok)) => {
                 self.fatal(Self::unexpected_token_err(
                     token::Kind::IntLiteral,
@@ -117,14 +111,8 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     "Infix declaration needs to have its precendence.".to_owned() 
                 ));
             },
-            Err(ParseErr::EOF) => {
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                ));
-            },
-        } as usize;
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
+        };
         let op = match self.parse_op() {
             Ok(id) => id,
             Err(ParseErr::NotThisItem(tok)) => {
@@ -135,22 +123,15 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     "An infix needs an operator as its name.".to_owned()
                 ));
             },
-            Err(ParseErr::EOF) => {
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                ));
-            },
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         let arg_1 = match self.parse_func_arg() {
             Ok(arg) => arg,
-            Err(_) => {
+            Err(_) =>
                 self.fatal(Self::msg_err(
                     "Infix needs 2 arguments".to_owned(),
                     beg,
-                    self.curr_ptr()));
-            }
+                    self.curr_ptr())),
         };
         let arg_2 = match self.parse_func_arg() {
             Ok(arg) => arg,
@@ -162,15 +143,12 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             }
         };
         match self.parse_token(token::Kind::Colon) {
-            Err(ParseErr::EOF) => 
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(), beg, self.curr_ptr())),
-            Err(ParseErr::NotThisItem(tok)) => {
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
+            Err(ParseErr::NotThisItem(tok)) => 
                 self.err(Self::unexpected_token_err(
                     token::Kind::Colon,
                     token::Value::None, 
-                    tok, "Colon expected".to_owned()))
-            }
+                    tok, "Colon expected".to_owned())),
             _ => (),  
         };
         let body = match self.parse_expr() {
@@ -181,12 +159,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     beg,
                     self.curr_ptr()
                 )),
-            Err(ParseErr::EOF) =>
-                self.fatal(Self::msg_err(
-                        "End of file reached".to_owned(),
-                        beg,
-                        self.curr_ptr()
-                    )),
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         Ok(ast::InfixDef{
             id: self.next_node_id(),
@@ -200,9 +173,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Err(err) = self.parse_token(token::Kind::FuncDecl) {
-            return Err(err);
-        }
+        self.parse_token(token::Kind::FuncDecl)?;
         let ident = match self.parse_ident() {
             Ok(id) => id,
             Err(ParseErr::NotThisItem(tok)) => {
@@ -213,13 +184,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     "A function needs an identifier as its name.".to_owned()
                 ));
             },
-            Err(ParseErr::EOF) => {
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                ));
-            }
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         let mut args_t = Vec::new();
         if let Ok(tmp_args_t) = self.parse_func_args_types() {
@@ -231,8 +196,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
         match self.parse_token(token::Kind::Colon) {
             Err(ParseErr::EOF) => 
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(), beg, self.curr_ptr())),
+                self.eof_reached_fatal(beg, self.curr_ptr()),
             Err(ParseErr::NotThisItem(tok)) => {
                 self.err(Self::unexpected_token_err(
                     token::Kind::Colon,
@@ -302,40 +266,33 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
-        match self.parse_token(token::Kind::LeftParenthesis) {
-            Ok(_) => {
-                let mut attrs = Vec::new();
-                while let Ok(attr) = self.parse_ident() {
-                    attrs.push(
-                        ast::FuncAttr{
-                            id: self.next_node_id(),
-                            ident: attr,
-                    });
-                }
-                let beg = self.curr_ptr();
-                match self.parse_token(token::Kind::RightParenthesis) {
-                    Err(ParseErr::EOF) => 
-                        self.fatal(Self::msg_err(
-                            "End of file reached".to_owned(), beg, self.curr_ptr())),
-                    Err(ParseErr::NotThisItem(tok)) => {
-                        self.err(Self::unexpected_token_err(
-                            token::Kind::RightParenthesis,
-                            token::Value::None, 
-                            tok, "Unclosed attributes parenthesis".to_owned()))
-                    }
-                    _ => (),  
-                };
-                Ok(attrs)
-            },
-            Err(err) => Err(err),
+        self.parse_token(token::Kind::LeftParenthesis)?;
+        let mut attrs = Vec::new();
+        while let Ok(attr) = self.parse_ident() {
+            attrs.push(
+                ast::FuncAttr{
+                    id: self.next_node_id(),
+                    ident: attr,
+            });
         }
+        let beg = self.curr_ptr();
+        match self.parse_token(token::Kind::RightParenthesis) {
+            Err(ParseErr::EOF) => 
+                self.eof_reached_fatal(beg, self.curr_ptr()),
+            Err(ParseErr::NotThisItem(tok)) => {
+                self.err(Self::unexpected_token_err(
+                    token::Kind::RightParenthesis,
+                    token::Value::None, 
+                    tok, "Unclosed attributes parenthesis".to_owned()))
+            }
+            _ => (),  
+        };
+        Ok(attrs)
     }
 
     fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Err(err) = self.parse_token(token::Kind::FuncDef) {
-            return Err(err);
-        }
+        self.parse_token(token::Kind::FuncDef)?;
         let ident = match self.parse_ident() {
             Ok(id) => id,
             Err(ParseErr::NotThisItem(tok)) => {
@@ -346,13 +303,8 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     "A function needs an identifier as its name.".to_owned()
                 ));
             },
-            Err(ParseErr::EOF) => {
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                ));
-            }
+            Err(ParseErr::EOF) =>
+                self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         let args = match self.parse_func_args() {
             Ok(args) => args,
@@ -364,8 +316,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
         match self.parse_token(token::Kind::Colon) {
             Err(ParseErr::EOF) => 
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(), beg, self.curr_ptr())),
+                self.eof_reached_fatal(beg, self.curr_ptr()),
             Err(ParseErr::NotThisItem(tok)) => {
                 self.err(Self::unexpected_token_err(
                     token::Kind::Colon,
@@ -383,11 +334,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     self.curr_ptr()
                 )),
             Err(ParseErr::EOF) =>
-                self.fatal(Self::msg_err(
-                        "End of file reached".to_owned(),
-                        beg,
-                        self.curr_ptr()
-                    )),
+                self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         Ok(ast::FuncDef{
             id: self.next_node_id(),
@@ -412,18 +359,16 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
-        match self.parse_ident() {
-            Ok(ident) => Ok(ast::FuncArg {
-                id: self.next_node_id(),
-                ty: None,
-                span: Span {
-                    beg: ident.span.clone().beg,
-                    end: ident.span.clone().end,
-                },
-                ident: ident, 
-            }),
-            Err(err) => Err(err),
-        }
+        let ident = self.parse_ident()?; 
+        Ok(ast::FuncArg {
+            id: self.next_node_id(),
+            ty: None,
+            span: Span {
+                beg: ident.span.clone().beg,
+                end: ident.span.clone().end,
+            },
+            ident: ident, 
+        })
     }
 
     // Expr 
@@ -559,12 +504,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         self.parse_token(token::Kind::LeftParenthesis)?;
         let expr = match self.parse_expr() {
             Ok(e) => e,
-            Err(ParseErr::EOF) => 
-                self.fatal(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg,
-                    self.curr_ptr(),
-                )),
+            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
             Err(ParseErr::NotThisItem(_)) => 
                 self.fatal(Self::msg_err(
                     "Expression expected after opening parenthesis '('".to_owned(),
@@ -703,6 +643,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         self.fatal(Self::msg_err(
             "End of file reached".to_owned(), beg, end))
     }
+
     // Errors
 
     #[allow(dead_code)]
