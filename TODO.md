@@ -34,6 +34,8 @@ Documentation progress:
 * Refactor function and infix parsing to smaller functions
 * Allow function types in `parse_type`
 * ~~change `end of file reached` fatals to `eof_fatal` call~~
+* refactor some matches to `unwrap_or` or `unwrap_or_else`
+* make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context.
 
 ## Pass module
 

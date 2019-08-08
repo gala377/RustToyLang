@@ -100,7 +100,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(token::Kind::InfixDef)?;
+        self.parse_token(&token::Kind::InfixDef)?;
         let precedence: usize = match self.parse_int_lit() {
             Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val as usize,
             Err(ParseErr::NotThisItem(tok)) => {
@@ -142,15 +142,10 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     self.curr_ptr()));
             }
         };
-        match self.parse_token(token::Kind::Colon) {
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-            Err(ParseErr::NotThisItem(tok)) => 
-                self.err(Self::unexpected_token_err(
-                    token::Kind::Colon,
-                    token::Value::None, 
-                    tok, "Colon expected".to_owned())),
-            _ => (),  
-        };
+        self.try_parse_token_rec(
+            &token::Kind::Colon,
+            "Colon expected".to_owned(),
+            token::Value::String(";".to_owned()));
         let body = match self.parse_expr() {
             Ok(expr) => expr,
             Err(ParseErr::NotThisItem(_)) =>
@@ -172,39 +167,15 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
-        self.parse_token(token::Kind::FuncDecl)?;
-        let ident = match self.parse_ident() {
-            Ok(id) => id,
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.fatal(Self::unexpected_token_err(
-                    token::Kind::Identifier,
-                    token::Value::None,
-                    tok, 
-                    "A function needs an identifier as its name.".to_owned()
-                ));
-            },
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
-        let mut args_t = Vec::new();
-        if let Ok(tmp_args_t) = self.parse_func_args_types() {
-            args_t = tmp_args_t;
-        }
-        let mut attrs = Vec::new(); 
-        if let Ok(tmp_attrs) = self.parse_func_attrs() {
-            attrs = tmp_attrs;
-        }
-        match self.parse_token(token::Kind::Colon) {
-            Err(ParseErr::EOF) => 
-                self.eof_reached_fatal(beg, self.curr_ptr()),
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.err(Self::unexpected_token_err(
-                    token::Kind::Colon,
-                    token::Value::None, 
-                    tok, "Colon expected".to_owned()))
-            }
-            _ => (),  
-        };
+        self.parse_token(&token::Kind::FuncDecl)?;
+        let ident = self.try_parse_ident_fail(
+            "A function needs an identifier as its name.".to_owned());
+        let args_t = self.parse_func_args_types().unwrap_or_default();
+        let attrs = self.parse_func_attrs().unwrap_or_default();
+        self.try_parse_token_rec(
+            &token::Kind::Colon,
+            "Colon expected".to_owned(),
+            token::Value::String(")".to_owned()));
         let ret_t = self.parse_type()?;
         Ok(ast::FuncDecl {
             id: self.next_node_id(),
@@ -266,7 +237,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
-        self.parse_token(token::Kind::LeftParenthesis)?;
+        self.parse_token(&token::Kind::LeftParenthesis)?;
         let mut attrs = Vec::new();
         while let Ok(attr) = self.parse_ident() {
             attrs.push(
@@ -275,56 +246,24 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     ident: attr,
             });
         }
-        let beg = self.curr_ptr();
-        match self.parse_token(token::Kind::RightParenthesis) {
-            Err(ParseErr::EOF) => 
-                self.eof_reached_fatal(beg, self.curr_ptr()),
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.err(Self::unexpected_token_err(
-                    token::Kind::RightParenthesis,
-                    token::Value::None, 
-                    tok, "Unclosed attributes parenthesis".to_owned()))
-            }
-            _ => (),  
-        };
+        self.try_parse_token_rec(
+            &token::Kind::RightParenthesis, 
+            "Unclosed attributes parenthesis".to_owned(),
+            token::Value::String(")".to_owned()));
         Ok(attrs)
     }
 
     fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(token::Kind::FuncDef)?;
-        let ident = match self.parse_ident() {
-            Ok(id) => id,
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.fatal(Self::unexpected_token_err(
-                    token::Kind::Identifier,
-                    token::Value::None,
-                    tok, 
-                    "A function needs an identifier as its name.".to_owned()
-                ));
-            },
-            Err(ParseErr::EOF) =>
-                self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
-        let args = match self.parse_func_args() {
-            Ok(args) => args,
-            Err(_) => unreachable!(),
-        };
-        let mut attrs = Vec::new();
-        if let Ok(tmp_attrs) = self.parse_func_attrs() {
-            attrs = tmp_attrs;
-        }
-        match self.parse_token(token::Kind::Colon) {
-            Err(ParseErr::EOF) => 
-                self.eof_reached_fatal(beg, self.curr_ptr()),
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.err(Self::unexpected_token_err(
-                    token::Kind::Colon,
-                    token::Value::None, 
-                    tok, "Colon expected".to_owned()))
-            }
-            _ => (),  
-        };
+        self.parse_token(&token::Kind::FuncDef)?;
+        let ident = self.try_parse_ident_fail(
+            "A function needs an identifier as its name.".to_owned());
+        let args = self.parse_func_args().unwrap_or_else(|_| unreachable!());
+        let attrs = self.parse_func_attrs().unwrap_or_default();
+        self.try_parse_token_rec(
+            &token::Kind::Colon,
+            "Colon expected".to_owned(),
+            token::Value::String(";".to_owned()));
         let body = match self.parse_expr() {
             Ok(expr) => expr,
             Err(ParseErr::NotThisItem(_)) =>
@@ -436,7 +375,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_func_call(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Err(_) = self.parse_token(token::Kind::At) {
+        if let Err(_) = self.parse_token(&token::Kind::At) {
             return self.parse_primary_expr();
         }
         let lhs = match self.parse_primary_expr() {
@@ -501,7 +440,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(token::Kind::LeftParenthesis)?;
+        self.parse_token(&token::Kind::LeftParenthesis)?;
         let expr = match self.parse_expr() {
             Ok(e) => e,
             Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
@@ -512,22 +451,10 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
                     self.curr_ptr()
                 )),
         };
-        match self.parse_token(token::Kind::RightParenthesis) {
-            Err(ParseErr::EOF) => 
-                self.err(Self::msg_err(
-                    "End of file reached".to_owned(),
-                    beg.clone(),
-                    self.curr_ptr()
-                )),
-            Err(ParseErr::NotThisItem(tok)) => 
-                self.err(Self::unexpected_token_err(
-                    token::Kind::RightParenthesis,
-                    token::Value::String(String::from(")")),
-                    tok,
-                    "Expected closing parenthesis".to_owned()
-                )),
-            _ => (),
-        };
+        self.try_parse_token_rec(
+            &token::Kind::RightParenthesis,
+            "Expected closing parenthesis".to_owned(),
+            token::Value::String(String::from(")")));
         Ok(ast::Expr{
             id: self.next_node_id(),
             span: Span {
@@ -544,7 +471,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
-        let tok = self.parse_token(token::Kind::Identifier)?;
+        let tok = self.parse_token(&token::Kind::Identifier)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Ident {
                 id: self.next_node_id(),
@@ -557,7 +484,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn parse_op(&mut self) -> PRes<ast::Op<S::Pointer>, S::Pointer> {
-        let tok = self.parse_token(token::Kind::Operator)?;
+        let tok = self.parse_token(&token::Kind::Operator)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Op {
                 id: self.next_node_id(),
@@ -577,7 +504,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_int_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        let tok = self.parse_token(token::Kind::IntLiteral)?;
+        let tok = self.parse_token(&token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
             Ok(ast::Lit {
                 id: self.next_node_id(),
@@ -594,10 +521,10 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     // Helpers 
 
-    fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+    fn parse_token(&mut self, kind: &token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         match self.lexer.curr() {
             Some(tok) => 
-                if tok.kind == kind {
+                if tok.kind == *kind {
                     self.lexer.next();
                     Ok(tok)
                 } else {
@@ -607,6 +534,58 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         }
     }
 
+    fn try_parse_token_rec(&mut self, kind: &token::Kind, error_msg: String, val: token::Value) -> token::Token<S::Pointer> {
+        let beg = self.curr_ptr();
+        self.parse_token(kind).unwrap_or_else(
+            |err| match err {
+                ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
+                ParseErr::NotThisItem(tok) => {
+                    self.err(Self::unexpected_token_err(
+                        kind.clone(),
+                        val.clone(), 
+                        tok.clone(), 
+                        error_msg));
+                    token::Token {
+                        span: tok.span,
+                        kind: kind.clone(),
+                        value: val,
+                    }
+                }
+        })
+    }
+
+    fn try_parse_token_fail(&mut self, 
+            kind: &token::Kind,
+            error_msg: String,
+            val: token::Value) -> token::Token<S::Pointer> 
+    {
+        let beg = self.curr_ptr();
+        self.parse_token(kind).unwrap_or_else(
+            |err| match err {
+                ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
+                ParseErr::NotThisItem(tok) =>
+                    self.fatal(Self::unexpected_token_err(
+                        kind.clone(),
+                        val, 
+                        tok, 
+                        error_msg)),
+        })
+    }
+
+    fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
+        let beg = self.curr_ptr();
+        self.parse_ident().unwrap_or_else(
+            |err| match err {
+                ParseErr::NotThisItem(tok) =>
+                    self.fatal(Self::unexpected_token_err(
+                        token::Kind::Identifier,
+                        token::Value::None,
+                        tok, 
+                        error_msg)),
+                ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
+        })
+    }
+
     pub fn next_node_id(&mut self) -> ast::NodeId {
         let tmp = self.node_id;
         self.node_id += 1;
@@ -614,7 +593,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
     }
 
     fn one_of_tok(&mut self, kinds: Vec<token::Kind>) -> PRes<token::Token<S::Pointer>, S::Pointer> {
-        for k in kinds {
+        for k in &kinds {
             if let ret @ Ok(_) = self.parse_token(k) {
                 return ret;
             }
