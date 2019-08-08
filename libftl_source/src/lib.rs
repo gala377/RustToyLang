@@ -172,7 +172,7 @@ pub mod tests {
     /// Asserts source state equals the one passed in the arguments. 
     /// 
     /// There are three asserts being made:
-    /// * result of the `curr_char` method;
+    /// * result of the [`curr_char`](../trait.Source#method.curr_char) method;
     /// * line of the currently pointed character;
     /// * in line position of the currently pointed character;
     pub fn assert_source<T: Source>(s: &T, ch: Option<char>, line: usize, pos: usize) {

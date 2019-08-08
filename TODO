@@ -1,9 +1,19 @@
 Document all public API 
 
-Inluding modules. 
+Including modules. 
 Remember that modules are documented with //! 
 while other items are documented with /// 
 
-Whats more remeber about sections 
+Whats more remember about sections 
 like # Panics # Errors and # Examples 
-and code snippets
+and code snippets.
+
+Documentation progresss:
+    * libftl_utility - done
+    * libftl_source - done
+    * libftl_session
+    * libftl_pass
+    * libftl_parser
+    * libftl_lexer
+    * libftl_error
+    * libftl_cli

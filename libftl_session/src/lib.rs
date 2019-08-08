@@ -1,3 +1,6 @@
+//! Defines compilation session as 
+//! well as related types.
+
 use std::io;
 use std::io::Write;
 
