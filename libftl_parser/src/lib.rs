@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Display;
 
 use ftl_utility::RcRef;
 use ftl_lexer::{
@@ -33,7 +35,7 @@ pub struct Parser<S: Source> {
 
 }
 
-impl<S> Parser<S> where S: Source, S::Pointer: 'static {
+impl<S> Parser<S> where S: 'static + Source {
 
     // Public interface 
 
@@ -562,31 +564,21 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
             error_msg: String,
             val: token::Value) -> token::Token<S::Pointer> 
     {
-        let beg = self.curr_ptr();
-        self.parse_token(kind).unwrap_or_else(
-            |err| match err {
-                ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
-                ParseErr::NotThisItem(tok) =>
-                    self.fatal(Self::unexpected_token_err(
-                        kind.clone(),
-                        val, 
-                        tok, 
-                        error_msg)),
-        })
+        let kind_ = kind.clone();
+        Comb(self)
+            .r#try(&mut move |self_: &mut Self| self_.parse_token(&kind_))
+            .fail(kind, val, error_msg)
+            .run()
     }
 
     fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
-        let beg = self.curr_ptr();
-        self.parse_ident().unwrap_or_else(
-            |err| match err {
-                ParseErr::NotThisItem(tok) =>
-                    self.fatal(Self::unexpected_token_err(
-                        token::Kind::Identifier,
-                        token::Value::None,
-                        tok, 
-                        error_msg)),
-                ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
-        })
+        Comb(self)
+            .r#try(&mut Self::parse_ident)
+            .fail(
+                &token::Kind::Identifier,
+                token::Value::None,
+                error_msg)
+            .run()
     }
 
     pub fn next_node_id(&mut self) -> ast::NodeId {
@@ -688,6 +680,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
 }
 
+#[derive(Debug)]
 pub enum ParseErr<P: ftl_source::Pointer> {
     EOF,
     NotThisItem(token::Token<P>),
