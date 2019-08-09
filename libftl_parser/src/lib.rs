@@ -104,7 +104,7 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(&token::Kind::InfixDef)?;
+        self.parse_token(token::Kind::InfixDef)?;
         let precedence: usize = match self.parse_int_lit() {
             Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val as usize,
             Err(ParseErr::NotThisItem(tok)) => {
@@ -117,49 +117,32 @@ impl<S> Parser<S> where S: 'static + Source {
             },
             Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
-        let op = match self.parse_op() {
-            Ok(id) => id,
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.fatal(Self::unexpected_token_err(
-                    token::Kind::Identifier,
-                    token::Value::None,
-                    tok, 
-                    "An infix needs an operator as its name.".to_owned()
-                ));
-            },
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
-        let arg_1 = match self.parse_func_arg() {
-            Ok(arg) => arg,
-            Err(_) =>
-                self.fatal(Self::msg_err(
+        let op = Comb(self)
+            .r#try(&mut Self::parse_op)
+            .fail_unex_tok(
+                token::Kind::Operator,
+                token::Value::None,
+                "An infix needs an operator as its name.".to_owned())
+            .run();
+        let beg_ = beg.clone();
+        let arg_1 = self.parse_func_arg().unwrap_or_else(
+            |_| self.fatal(Self::msg_err(
                     "Infix needs 2 arguments".to_owned(),
                     beg,
-                    self.curr_ptr())),
-        };
-        let arg_2 = match self.parse_func_arg() {
-            Ok(arg) => arg,
-            Err(_) => {
-                self.fatal(Self::msg_err(
+                    self.curr_ptr())));
+        let arg_2 = self.parse_func_arg().unwrap_or_else(
+            |_| self.fatal(Self::msg_err(
                     "Infix needs 2 arguments".to_owned(),
-                    beg,
-                    self.curr_ptr()));
-            }
-        };
+                    beg_,
+                    self.curr_ptr())));
         self.try_parse_token_rec(
-            &token::Kind::Colon,
+            token::Kind::Colon,
             "Colon expected".to_owned(),
             token::Value::String(";".to_owned()));
-        let body = match self.parse_expr() {
-            Ok(expr) => expr,
-            Err(ParseErr::NotThisItem(_)) =>
-                self.fatal(Self::msg_err(
-                    "Infix needs a body definition".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                )),
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
+        let body = Comb(self)
+            .r#try(&mut Self::parse_expr)
+            .fail_msg("Infix needs a body definition".to_owned())
+            .run();
         Ok(ast::InfixDef{
             id: self.next_node_id(),
             ty: None,
@@ -171,13 +154,13 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
-        self.parse_token(&token::Kind::FuncDecl)?;
+        self.parse_token(token::Kind::FuncDecl)?;
         let ident = self.try_parse_ident_fail(
             "A function needs an identifier as its name.".to_owned());
         let args_t = self.parse_func_args_types().unwrap_or_default();
         let attrs = self.parse_func_attrs().unwrap_or_default();
         self.try_parse_token_rec(
-            &token::Kind::Colon,
+            token::Kind::Colon,
             "Colon expected".to_owned(),
             token::Value::String(")".to_owned()));
         let ret_t = self.parse_type()?;
@@ -241,7 +224,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
-        self.parse_token(&token::Kind::LeftParenthesis)?;
+        self.parse_token(token::Kind::LeftParenthesis)?;
         let mut attrs = Vec::new();
         while let Ok(attr) = self.parse_ident() {
             attrs.push(
@@ -251,7 +234,7 @@ impl<S> Parser<S> where S: 'static + Source {
             });
         }
         self.try_parse_token_rec(
-            &token::Kind::RightParenthesis, 
+            token::Kind::RightParenthesis, 
             "Unclosed attributes parenthesis".to_owned(),
             token::Value::String(")".to_owned()));
         Ok(attrs)
@@ -259,26 +242,19 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(&token::Kind::FuncDef)?;
+        self.parse_token(token::Kind::FuncDef)?;
         let ident = self.try_parse_ident_fail(
             "A function needs an identifier as its name.".to_owned());
-        let args = self.parse_func_args().unwrap_or_else(|_| unreachable!());
+        let args = self.parse_func_args();
         let attrs = self.parse_func_attrs().unwrap_or_default();
         self.try_parse_token_rec(
-            &token::Kind::Colon,
+            token::Kind::Colon,
             "Colon expected".to_owned(),
             token::Value::String(";".to_owned()));
-        let body = match self.parse_expr() {
-            Ok(expr) => expr,
-            Err(ParseErr::NotThisItem(_)) =>
-                self.fatal(Self::msg_err(
-                    "Function needs a body definition".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                )),
-            Err(ParseErr::EOF) =>
-                self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
+        let body = Comb(self)
+            .r#try(&mut Self::parse_expr)
+            .fail_msg("Function needs a body definition".to_owned())
+            .run();
         Ok(ast::FuncDef{
             id: self.next_node_id(),
             decl: ast::FuncDecl {
@@ -292,13 +268,12 @@ impl<S> Parser<S> where S: 'static + Source {
         })
     }
 
-    fn parse_func_args(&mut self) -> PRes<Vec<ast::FuncArg<S::Pointer>>, S::Pointer> {
-        // TODO - For now no type, comma or parenthesis support
+    fn parse_func_args(&mut self) -> Vec<ast::FuncArg<S::Pointer>> {
         let mut args = Vec::new();
         while let Ok(arg) = self.parse_func_arg() {
             args.push(arg);
         }
-        Ok(args)
+        args
     }
 
     fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
@@ -379,18 +354,13 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_func_call(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        if let Err(_) = self.parse_token(&token::Kind::At) {
+        if let Err(_) = self.parse_token(token::Kind::At) {
             return self.parse_primary_expr();
         }
-        let lhs = match self.parse_primary_expr() {
-            Ok(e) => e,
-            Err(ParseErr::NotThisItem(_)) =>
-                self.fatal(Self::msg_err(
-                    "Expected expression after call operator".to_owned(),
-                    beg, 
-                    self.curr_ptr())),
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
+        let lhs = Comb(self)
+            .r#try(&mut Self::parse_primary_expr)
+            .fail_msg("Expected expression after call operator".to_owned())
+            .run();
         let mut args = Vec::new();
         while let Ok(arg) = self.parse_primary_expr() {
             args.push(Box::new(arg));
@@ -444,19 +414,13 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(&token::Kind::LeftParenthesis)?;
-        let expr = match self.parse_expr() {
-            Ok(e) => e,
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-            Err(ParseErr::NotThisItem(_)) => 
-                self.fatal(Self::msg_err(
-                    "Expression expected after opening parenthesis '('".to_owned(),
-                    beg,
-                    self.curr_ptr()
-                )),
-        };
+        self.parse_token(token::Kind::LeftParenthesis)?;
+        let expr = Comb(self)
+            .r#try(&mut Self::parse_expr)
+            .fail_msg("Expression expected after opening parenthesis '('".to_owned())
+            .run();
         self.try_parse_token_rec(
-            &token::Kind::RightParenthesis,
+            token::Kind::RightParenthesis,
             "Expected closing parenthesis".to_owned(),
             token::Value::String(String::from(")")));
         Ok(ast::Expr{
@@ -475,7 +439,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
-        let tok = self.parse_token(&token::Kind::Identifier)?;
+        let tok = self.parse_token(token::Kind::Identifier)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Ident {
                 id: self.next_node_id(),
@@ -488,7 +452,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_op(&mut self) -> PRes<ast::Op<S::Pointer>, S::Pointer> {
-        let tok = self.parse_token(&token::Kind::Operator)?;
+        let tok = self.parse_token(token::Kind::Operator)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Op {
                 id: self.next_node_id(),
@@ -508,7 +472,7 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_int_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        let tok = self.parse_token(&token::Kind::IntLiteral)?;
+        let tok = self.parse_token(token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
             Ok(ast::Lit {
                 id: self.next_node_id(),
@@ -525,10 +489,10 @@ impl<S> Parser<S> where S: 'static + Source {
 
     // Helpers 
 
-    fn parse_token(&mut self, kind: &token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+    fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         match self.lexer.curr() {
             Some(tok) => 
-                if tok.kind == *kind {
+                if tok.kind == kind {
                     self.lexer.next();
                     Ok(tok)
                 } else {
@@ -538,9 +502,9 @@ impl<S> Parser<S> where S: 'static + Source {
         }
     }
 
-    fn try_parse_token_rec(&mut self, kind: &token::Kind, error_msg: String, val: token::Value) -> token::Token<S::Pointer> {
+    fn try_parse_token_rec(&mut self, kind: token::Kind, error_msg: String, val: token::Value) -> token::Token<S::Pointer> {
         let beg = self.curr_ptr();
-        self.parse_token(kind).unwrap_or_else(
+        self.parse_token(kind.clone()).unwrap_or_else(
             |err| match err {
                 ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
                 ParseErr::NotThisItem(tok) => {
@@ -551,7 +515,7 @@ impl<S> Parser<S> where S: 'static + Source {
                         error_msg));
                     token::Token {
                         span: tok.span,
-                        kind: kind.clone(),
+                        kind: kind,
                         value: val,
                     }
                 }
@@ -560,22 +524,22 @@ impl<S> Parser<S> where S: 'static + Source {
 
     #[allow(dead_code)]
     fn try_parse_token_fail(&mut self, 
-            kind: &token::Kind,
+            kind: token::Kind,
             error_msg: String,
             val: token::Value) -> token::Token<S::Pointer> 
     {
         let kind_ = kind.clone();
         Comb(self)
-            .r#try(&mut move |self_: &mut Self| self_.parse_token(&kind_))
-            .fail(kind, val, error_msg)
+            .r#try(&mut move |self_: &mut Self| self_.parse_token(kind_.clone()))
+            .fail_unex_tok(kind, val, error_msg)
             .run()
     }
 
     fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
         Comb(self)
             .r#try(&mut Self::parse_ident)
-            .fail(
-                &token::Kind::Identifier,
+            .fail_unex_tok(
+                token::Kind::Identifier,
                 token::Value::None,
                 error_msg)
             .run()
@@ -588,7 +552,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn one_of_tok(&mut self, kinds: Vec<token::Kind>) -> PRes<token::Token<S::Pointer>, S::Pointer> {
-        for k in &kinds {
+        for k in kinds {
             if let ret @ Ok(_) = self.parse_token(k) {
                 return ret;
             }

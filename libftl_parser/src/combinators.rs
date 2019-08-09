@@ -29,12 +29,12 @@ pub struct TryUninitComb<'a, S: Source, R>(&'a mut Parser<S>, &'a mut Meth<S, R>
 
 impl<'a, S: Source, R> TryUninitComb<'a, S, R> {
 
-    pub fn fail<'b>(self,
-        kind: &'b token::Kind,
+    pub fn fail_unex_tok(self,
+        kind: token::Kind,
         val: token::Value,
-        msg: String) -> TryFailParser<'a, 'b, S, R> 
+        msg: String) -> TryFailUnexpectedErrParser<'a, S, R> 
     {    
-        TryFailParser{
+        TryFailUnexpectedErrParser{
             parser: self.0,
             meth: self.1,
             kind,
@@ -43,17 +43,25 @@ impl<'a, S: Source, R> TryUninitComb<'a, S, R> {
         }
     }
 
+    pub fn fail_msg(self, msg: String) -> TryFailMsgErrorParser<'a, S, R> {
+        TryFailMsgErrorParser{
+            parser: self.0,
+            meth: self.1,
+            msg,
+        }
+    }
+
 }
 
-pub struct TryFailParser<'a, 'b, S: Source, R>{
+pub struct TryFailUnexpectedErrParser<'a, S: Source, R>{
     parser: &'a mut Parser<S>,
     meth: &'a mut Meth<S, R>,
-    kind: &'b token::Kind,
+    kind: token::Kind,
     val: token::Value,
     msg: String
 }
 
-impl<'a, 'b, S, R> TryFailParser<'a, 'b, S, R> where S: 'static + Source{
+impl<'a, S, R> TryFailUnexpectedErrParser<'a, S, R> where S: 'static + Source{
 
     pub fn run(self) -> R {
         let Self{parser, meth, kind, val, msg} = self;
@@ -65,6 +73,31 @@ impl<'a, 'b, S, R> TryFailParser<'a, 'b, S, R> where S: 'static + Source{
                     parser.fatal(Parser::<S>::unexpected_token_err(
                         kind.clone(), val, tok, msg));
                 }  
+            }
+        )
+    }
+}
+
+pub struct TryFailMsgErrorParser<'a, S: Source, R> {
+    parser: &'a mut Parser<S>,
+    meth: &'a mut Meth<S, R>,
+    msg: String,
+}
+
+impl <'a, S, R> TryFailMsgErrorParser<'a, S, R> where S: 'static + Source {
+
+    pub fn run(self) -> R {
+        let Self{parser, meth, msg} = self;
+        let beg = parser.curr_ptr();
+        meth(parser).unwrap_or_else(
+            |err| match err {
+                ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
+                ParseErr::NotThisItem(_) => 
+                    parser.fatal(Parser::<S>::msg_err(
+                        msg,
+                        beg,
+                        parser.curr_ptr()
+                    )),
             }
         )
     }

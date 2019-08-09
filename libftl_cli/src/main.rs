@@ -52,8 +52,6 @@ static SOURCE: &str = r#"
     def test3 (test4 test1) : 2+2*2*2*2*2*2
 
     decl test3 (test1 test2) : int
-
-    def (elo): pzdr
 "#;
 
 fn main() -> io::Result<()> {
