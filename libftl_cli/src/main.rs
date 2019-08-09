@@ -37,6 +37,9 @@ static SOURCE: &str = r#"
     infix 50 + a b: @add a b
     infix 100 * a b: @mult a b
 
+    def multiple a b c: a + b + c
+    def call_mult: @multiple 1 2 3 + 2
+
     decl foo int int: int
     def foo a b: a + b
 

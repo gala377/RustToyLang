@@ -11,13 +11,17 @@ use ftl_source::{
 };
 use ftl_error::LangError;
 
+
 pub mod ast;
 pub mod errors;
 pub mod visitor;
 pub mod visitor_mut;
 
-type PRes<T, P> = Result<T, ParseErr<P>>;
+mod combinators;
 
+use combinators::*;
+
+type PRes<T, P> = Result<T, ParseErr<P>>;
 
 pub struct Parser<S: Source> {
     
@@ -72,26 +76,24 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         let beg = self.curr_ptr();
-        let mut kind;
-        if let Ok(func_decl) = self.parse_func_decl() {
-            kind = ast::TopLevelDeclKind::FunctionDecl(func_decl);
+        let kind = if let Ok(func_decl) = self.parse_func_decl() {
+            ast::TopLevelDeclKind::FunctionDecl(func_decl)
         } else if let Ok(func_def) = self.parse_func_def() {
-            kind = ast::TopLevelDeclKind::FunctionDef(func_def);
+            ast::TopLevelDeclKind::FunctionDef(func_def)
         } else if let Ok(infix_def) = self.parse_infix_decl() {
-            kind = ast::TopLevelDeclKind::InfixDef(infix_def);
+            ast::TopLevelDeclKind::InfixDef(infix_def)
         } else {
             return Err(match self.lexer.curr() {
                 Some(tok) => ParseErr::NotThisItem(tok),
                 None => ParseErr::EOF, 
             });
-        }
-        let end = self.curr_ptr();
+        };
         Ok(ast::TopLevelDecl{
             id: self.next_node_id(),
             kind,
             span: Span {
                 beg, 
-                end,
+                end: self.curr_ptr(),
             },
         })
     }
@@ -554,6 +556,7 @@ impl<S> Parser<S> where S: Source, S::Pointer: 'static {
         })
     }
 
+    #[allow(dead_code)]
     fn try_parse_token_fail(&mut self, 
             kind: &token::Kind,
             error_msg: String,

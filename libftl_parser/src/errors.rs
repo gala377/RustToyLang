@@ -5,6 +5,10 @@ use ftl_source::{
     Span,
 };
 
+pub enum ParseErr<Ptr: Pointer> {
+    EOF,
+    NotThisItem(Token<Ptr>),
+}
 
 pub struct ParserError<Ptr: Pointer> {
     pub msg: String,
