@@ -1,5 +1,6 @@
-use std::fmt;
-use std::fmt::Display;
+use log::{
+    debug,
+};
 
 use ftl_utility::RcRef;
 use ftl_lexer::{
@@ -26,13 +27,11 @@ use combinators::*;
 type PRes<T, P> = Result<T, ParseErr<P>>;
 
 pub struct Parser<S: Source> {
-    
     sess: RcRef<Session<S>>, 
-
     lexer: Lexer<S>,
 
     node_id: ast::NodeId,
-
+    saved_ptrs: Vec<S::Pointer>,
 }
 
 impl<S> Parser<S> where S: 'static + Source {
@@ -44,6 +43,7 @@ impl<S> Parser<S> where S: 'static + Source {
             lexer,
             sess,
             node_id: 0,
+            saved_ptrs: Vec::new(),
         }
     }
 
@@ -77,7 +77,7 @@ impl<S> Parser<S> where S: 'static + Source {
     // Top level decl
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
+        self.push_ptr();      
         let kind = if let Ok(func_decl) = self.parse_func_decl() {
             ast::TopLevelDeclKind::FunctionDecl(func_decl)
         } else if let Ok(func_def) = self.parse_func_def() {
@@ -94,7 +94,7 @@ impl<S> Parser<S> where S: 'static + Source {
             id: self.next_node_id(),
             kind,
             span: Span {
-                beg, 
+                beg: self.pop_ptr(), 
                 end: self.curr_ptr(),
             },
         })
@@ -103,7 +103,7 @@ impl<S> Parser<S> where S: 'static + Source {
     // Function
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
+        let beg = self.curr_ptr();        
         self.parse_token(token::Kind::InfixDef)?;
         let precedence: usize = match self.parse_int_lit() {
             Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val as usize,
@@ -128,12 +128,12 @@ impl<S> Parser<S> where S: 'static + Source {
         let arg_1 = self.parse_func_arg().unwrap_or_else(
             |_| self.fatal(Self::msg_err(
                     "Infix needs 2 arguments".to_owned(),
-                    beg,
+                    beg_,
                     self.curr_ptr())));
         let arg_2 = self.parse_func_arg().unwrap_or_else(
             |_| self.fatal(Self::msg_err(
                     "Infix needs 2 arguments".to_owned(),
-                    beg_,
+                    beg,
                     self.curr_ptr())));
         self.try_parse_token_rec(
             token::Kind::Colon,
@@ -185,18 +185,19 @@ impl<S> Parser<S> where S: 'static + Source {
      
             }),
             attrs,
-            ident, 
+            ident,
         })
     }
 
     fn parse_func_args_types(&mut self) -> PRes<Vec<ast::Type<S::Pointer>>, S::Pointer> {
         let mut args = Vec::new();
+        let beg = self.peek_ptr().clone();
         while let Ok(t) = self.parse_type() {
             if let ast::TypeKind::Literal(ast::LitType::Void) = t.kind {
                 self.err(
                     Self::msg_err(
                         "Void can only be used as function return argument".to_owned(),
-                        t.span.beg,
+                        beg.clone(),
                         t.span.end,
                 ))
             } else {
@@ -241,7 +242,6 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
         self.parse_token(token::Kind::FuncDef)?;
         let ident = self.try_parse_ident_fail(
             "A function needs an identifier as its name.".to_owned());
@@ -487,7 +487,7 @@ impl<S> Parser<S> where S: 'static + Source {
         }
     }
 
-    // Helpers 
+    // Parse helpers 
 
     fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         match self.lexer.curr() {
@@ -503,7 +503,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn try_parse_token_rec(&mut self, kind: token::Kind, error_msg: String, val: token::Value) -> token::Token<S::Pointer> {
-        let beg = self.curr_ptr();
+        let beg = self.peek_ptr().clone();
         self.parse_token(kind.clone()).unwrap_or_else(
             |err| match err {
                 ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
@@ -563,9 +563,26 @@ impl<S> Parser<S> where S: 'static + Source {
         }
     }
 
+    // Utility Helpers
+
+    fn push_ptr(&mut self) {
+        debug!("Pushing ptr onto the ptr stack");
+        self.saved_ptrs.push(self.curr_ptr())
+    }
+
+    fn pop_ptr(&mut self) -> S::Pointer {
+        debug!("Poping value from the ptr stack");
+        self.saved_ptrs.pop().expect("Poping from empty pointer stack")
+    }
+
+    fn peek_ptr(&mut self) -> &S::Pointer {
+        debug!("Peeping value on the ptr stack");
+        self.saved_ptrs.last().expect("Peeking from empty pointer stack")
+    }
+
     // Delegations
 
-    pub fn curr_ptr(&self) -> S::Pointer {
+    fn curr_ptr(&self) -> S::Pointer {
         self.lexer.curr_ptr()
     }
     

@@ -1,10 +1,4 @@
-use std::fmt;
-use std::fmt::Display;
-
-use ftl_source::{
-    Pointer,
-    Source,
-};
+use ftl_source::Source;
 use ftl_lexer::token;
 
 use crate::{
@@ -65,14 +59,16 @@ impl<'a, S, R> TryFailUnexpectedErrParser<'a, S, R> where S: 'static + Source{
 
     pub fn run(self) -> R {
         let Self{parser, meth, kind, val, msg} = self;
-        let beg = parser.curr_ptr();
         meth(parser).unwrap_or_else(
-            |err| match err {
-                ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
-                ParseErr::NotThisItem(tok) => {
-                    parser.fatal(Parser::<S>::unexpected_token_err(
-                        kind.clone(), val, tok, msg));
-                }  
+            |err| {
+                let beg = parser.pop_ptr();                
+                match err {
+                    ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
+                    ParseErr::NotThisItem(tok) => {
+                        parser.fatal(Parser::<S>::unexpected_token_err(
+                            kind.clone(), val, tok, msg));
+                    }  
+                }
             }
         )
     }
@@ -88,19 +84,19 @@ impl <'a, S, R> TryFailMsgErrorParser<'a, S, R> where S: 'static + Source {
 
     pub fn run(self) -> R {
         let Self{parser, meth, msg} = self;
-        let beg = parser.curr_ptr();
         meth(parser).unwrap_or_else(
-            |err| match err {
-                ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
-                ParseErr::NotThisItem(_) => 
-                    parser.fatal(Parser::<S>::msg_err(
-                        msg,
-                        beg,
-                        parser.curr_ptr()
-                    )),
+            |err| {
+                let beg = parser.pop_ptr();
+                match err {
+                    ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
+                    ParseErr::NotThisItem(_) => 
+                        parser.fatal(Parser::<S>::msg_err(
+                            msg,
+                            beg,
+                            parser.curr_ptr()
+                        )),
+                }
             }
         )
     }
 }
-
-pub struct TryRecParser;
