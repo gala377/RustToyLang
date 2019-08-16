@@ -146,7 +146,7 @@ impl<'a, S, R, C, F> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R,
         F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
-        let Self{prev_comb, mut fallback, ..} = self;
+        let Self{prev_comb, fallback, ..} = self;
         let (parser, res) = prev_comb.run_chain();
         let res = res.or_else(|_| fallback(parser));
         (parser, res)

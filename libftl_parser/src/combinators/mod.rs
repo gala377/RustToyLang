@@ -112,7 +112,7 @@ impl<'a, S, R, F> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R, F
         F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
-        let Self(parser, mut func) = self;
+        let Self(parser, func) = self;
         let res = func(parser);
         (parser, res)
     }
