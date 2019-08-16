@@ -48,7 +48,7 @@ static SOURCE: &str = r#"
     def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
 
     def test: 2 + 2 * 2 
-    def test2: 1 `foo 2 `foo 3 `foo 4 + ( 
+    infix 5 <==> a b : 1 `foo 2 `foo 3 `foo 4 + ( 
     def test3 (test4 test1) : 2+2*2*2*2*2*2
 
     decl test3 (test1 test2) : int

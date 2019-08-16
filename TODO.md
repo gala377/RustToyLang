@@ -38,6 +38,46 @@ Documentation progress:
 * make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context.
 * _make `save_ptr` and `retrieve_ptr` methods for parser._ - In progress
 
+## _Combinators - WIP
+
+### Example usage
+
+```Rust
+// parse module
+Comb::new(self)
+    .many(Self::parse_top_level_decl)
+    .map(|node| module.decl.push(node))
+    .then()
+    .try(Self::parse_eof())
+    .recover().? # niew wiem jak to
+
+// parse top level
+Comb::new(self)
+    .once(Self::parse_func_decl)
+    .uwrap_with(|decl| ast::TopLevelDeclKind::FunctionDecl(decl))
+    .or().once(Self::parse_func_def)
+    .uwrap_with(|def| ast::TopLevelDeclKind::FunctionDef(def)
+    .or().once(Self::parse_infix_decl)
+    .uwrap_with(|def| ast::TopLevelDeclKind::InfixDef(def))
+    .run()
+
+Comb::new(self)
+    .try(Self::parse_int_lit)
+    .fail_with_error(|tok| {
+        Self::unexpected_token_err(
+                    token::Kind::IntLiteral,
+                    token::Value::None,
+                    tok,
+                    "Infix declaration needs to have its precendence.".to_owned() 
+        ));
+    })
+
+Comb::new(self)
+    .try(|self| self.parse_token(&token::Kind::Colon))
+    .recover("")
+
+```
+
 ## Pass module
 
 ### New passes
