@@ -34,8 +34,8 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
     kind: token::Kind,
     val: token::Value,
     msg: String) -> TryFailUnexpectedErrParser<'a, S, R, Self> 
-    where 
-        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+        where 
+            Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
     {    
         TryFailUnexpectedErrParser::chain(self, kind, val, msg)
     }
@@ -46,6 +46,13 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
     {
         TryFailMsgErrorParser::chain(self, msg)
     }
+
+    // fn or(self, meth: &'a mut Meth<S, R>) -> OrComb<'a, S, R, Self> 
+    //     where
+    //         Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+    // {
+    //     OrComb::chain(self, meth)
+    // }
 }
 
 impl<'a, S, R, C> ResultCombinator<'a, S, R> for C where 
@@ -57,7 +64,6 @@ impl<'a, S, R, C> ResultCombinator<'a, S, R> for C where
 pub struct Comb<'a, S: 'static + Source>(pub &'a mut Parser<S>);
 
 impl<'a, S: 'static + Source> Comb<'a, S> {
-    
     pub fn r#try<R>(self, meth: &'a mut Meth<S, R>) -> impl Combinator<'a, S, PRes<R, S::Pointer>> {
         TryComb(self.0, meth)
     }
