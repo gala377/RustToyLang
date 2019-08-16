@@ -114,7 +114,7 @@ impl <'a, S, R, C> Combinator<'a, S, R> for TryFailMsgErrorParser<'a, S, R, C> w
 pub struct OrComb<'a, S, R, C, F> where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
-    F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     prev_comb: C,
     fallback: F,
@@ -126,7 +126,7 @@ pub struct OrComb<'a, S, R, C, F> where
 impl<'a, S, R, C, F> OrComb<'a, S, R, C, F> where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
-    F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>
 {
     pub fn chain(prev_comb: C, fallback: F) -> Self {
         Self{
@@ -143,7 +143,7 @@ impl<'a, S, R, C, F> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R,
     where
         S: 'static + Source,
         C: Combinator<'a, S, PRes<R, S::Pointer>>,
-        F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
+        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
         let Self{prev_comb, mut fallback, ..} = self;

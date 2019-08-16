@@ -46,7 +46,7 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
     fn or<F>(self, meth: F) -> OrComb<'a, S, R, Self, F>
         where
             Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
-            F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
+            F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
     {
         OrComb::chain(self, meth)
     }
@@ -95,7 +95,7 @@ pub struct Comb<'a, S: 'static + Source>(pub &'a mut Parser<S>);
 
 impl<'a, S: 'static + Source> Comb<'a, S> {
     pub fn r#try<R, F>(self, meth: F) -> impl Combinator<'a, S, PRes<R, S::Pointer>>
-        where F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer> {
+        where F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer> {
         TryComb(self.0, meth)
     }
 }
@@ -104,12 +104,12 @@ impl<'a, S: 'static + Source> Comb<'a, S> {
 pub struct TryComb<'a, S, R, F>(&'a mut Parser<S>, F) 
     where
         S: 'static + Source,
-        F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>;
+        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>;
 
 impl<'a, S, R, F> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R, F> 
     where 
         S: 'static + Source,
-        F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
+        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
         let Self(parser, mut func) = self;
