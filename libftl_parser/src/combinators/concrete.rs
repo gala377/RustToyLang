@@ -111,31 +111,31 @@ impl <'a, S, R, C> Combinator<'a, S, R> for TryFailMsgErrorParser<'a, S, R, C> w
 }
 
 
-// pub struct OrComb<'a, S, R, C> where
-//     S: 'static + Source,
-//     C: Combinator<'a, S, PRes<R, S::Pointer>> 
-// {
-//     prev_comb: C,
-//     fallback: &'a mut Meth<S, R>,
-// }
+pub struct OrComb<'a, S, R, C> where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>> 
+{
+    prev_comb: C,
+    fallback: &'a mut Meth<S, R>,
+}
 
-// impl<'a, S, R, C> OrComb<'a, S, R, C> where
-//     S: 'static + Source,
-//     C: Combinator<'a, S, PRes<R, S::Pointer>>
-// {
-//     pub fn chain(prev_comb: C, fallback: &'a mut Meth<S, R>) -> Self {
-//         Self{prev_comb, fallback}
-//     }
-// }
+impl<'a, S, R, C> OrComb<'a, S, R, C> where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>
+{
+    pub fn chain(prev_comb: C, fallback: &'a mut Meth<S, R>) -> Self {
+        Self{prev_comb, fallback}
+    }
+}
 
-// impl<'a, S, R, C> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R, C> where
-//     S: 'static + Source,
-//     C: Combinator<'a, S, PRes<R, S::Pointer>>
-// {
-//     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
-//         let Self{prev_comb, fallback} = self;
-//         let (parser, res) = prev_comb.run_chain();
-//         let res = res.or_else(|_| fallback(parser));
-//         (parser, res)
-//     }   
-// }
+impl<'a, S, R, C> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R, C> where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>
+{
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
+        let Self{prev_comb, fallback} = self;
+        let (parser, res) = prev_comb.run_chain();
+        let res = res.or_else(|_| fallback(parser));
+        (parser, res)
+    }   
+}

@@ -47,12 +47,12 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
         TryFailMsgErrorParser::chain(self, msg)
     }
 
-    // fn or(self, meth: &'a mut Meth<S, R>) -> OrComb<'a, S, R, Self> 
-    //     where
-    //         Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
-    // {
-    //     OrComb::chain(self, meth)
-    // }
+    fn or(self, meth: &'a mut Meth<S, R>) -> OrComb<'a, S, R, Self> 
+        where
+            Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+    {
+        OrComb::chain(self, meth)
+    }
 }
 
 impl<'a, S, R, C> ResultCombinator<'a, S, R> for C where 

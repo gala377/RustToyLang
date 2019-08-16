@@ -384,33 +384,44 @@ impl<S> Parser<S> where S: 'static + Source {
     // Primary expr
 
     fn parse_primary_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        if let Ok(ident) = self.parse_ident() {
-            return Ok(ast::Expr{
-                id: self.next_node_id(),
-                span: Span {
-                    beg: ident.span.clone().beg,
-                    end: ident.span.clone().end,
-                },
-                kind: ast::ExprKind::Identifier(ident),
-            });
-        }
-        if let Ok(lit) = self.parse_lit() {
-            return Ok(ast::Expr{
-                id: self.next_node_id(),
-                span: Span {
-                    beg: lit.span.clone().beg,
-                    end: lit.span.clone().end,
-                },
-                kind: ast::ExprKind::Literal(lit),
-            });
-        }
-        if let expr @ Ok(_) = self.parse_parenthesis_expr() {
+        if let expr @ Ok(_) = Comb(self)
+            .r#try(&mut Self::parse_ident_expr)
+            .or(&mut Self::parse_lit_expr)
+            .or(&mut Self::parse_parenthesis_expr)
+            .run() 
+        {
             return expr;
         }
         match self.lexer.curr() {
             None => Err(ParseErr::EOF),
             Some(tok) => Err(ParseErr::NotThisItem(tok)),
         }
+    }
+
+    fn parse_ident_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        self.parse_ident().and_then(
+            |ident: ast::Ident<S::Pointer>|
+                Ok(ast::Expr{
+                    id: self.next_node_id(),
+                    span: Span {
+                        beg: ident.span.clone().beg,
+                        end: ident.span.clone().end,
+                    },
+                    kind: ast::ExprKind::Identifier(ident),
+        }))
+    }
+
+    fn parse_lit_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+        self.parse_lit().and_then(
+            |lit: ast::Lit<S::Pointer>|
+                Ok(ast::Expr{
+                    id: self.next_node_id(),
+                    span: Span {
+                        beg: lit.span.clone().beg,
+                        end: lit.span.clone().end,
+                    },
+                    kind: ast::ExprKind::Literal(lit),
+        })) 
     }
 
     fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
