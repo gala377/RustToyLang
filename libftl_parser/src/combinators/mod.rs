@@ -12,10 +12,6 @@ pub mod concrete;
 use concrete::*;
 
 
-#[allow(type_alias_bounds)]
-pub type Meth<S: 'static + Source, R> = dyn FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>;
-
-
 pub trait Combinator<'a, S: 'static + Source, R>: Sized {
 
     fn run_chain(self) -> (&'a mut Parser<S>, R);
@@ -47,9 +43,10 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
         TryFailMsgErrorParser::chain(self, msg)
     }
 
-    fn or(self, meth: &'a mut Meth<S, R>) -> OrComb<'a, S, R, Self>
+    fn or<F>(self, meth: F) -> OrComb<'a, S, R, Self, F>
         where
             Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+            F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
     {
         OrComb::chain(self, meth)
     }
@@ -104,11 +101,19 @@ impl<'a, S: 'static + Source> Comb<'a, S> {
 }
 
 
-pub struct TryComb<'a, S: 'static + Source, R>(&'a mut Parser<S>, &'a mut Meth<S, R>);
+pub struct TryComb<'a, S, R, F>(&'a mut Parser<S>, F) 
+    where
+        S: 'static + Source,
+        F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>;
 
-impl<'a, S, R> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R> where S: 'static + Source {
+impl<'a, S, R, F> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R, F> 
+    where 
+        S: 'static + Source,
+        F: FnMut(&mut Parser<S>) -> PRes<R, S::Pointer>,
+{
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
-        let res = self.1(self.0);
-        (self.0, res)
+        let Self(parser, mut func) = self;
+        let res = func(parser);
+        (parser, res)
     }
 }

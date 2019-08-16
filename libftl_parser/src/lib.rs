@@ -119,7 +119,7 @@ impl<S> Parser<S> where S: 'static + Source {
             Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         let op = Comb(self)
-            .r#try(&mut Self::parse_op)
+            .r#try(Self::parse_op)
             .fail_unex_tok(
                 token::Kind::Operator,
                 token::Value::None,
@@ -141,7 +141,7 @@ impl<S> Parser<S> where S: 'static + Source {
             "Colon expected".to_owned(),
             token::Value::String(";".to_owned()));
         let body = Comb(self)
-            .r#try(&mut Self::parse_expr)
+            .r#try(Self::parse_expr)
             .fail_msg("Infix needs a body definition".to_owned())
             .run();
         Ok(ast::InfixDef{
@@ -253,7 +253,7 @@ impl<S> Parser<S> where S: 'static + Source {
             "Colon expected".to_owned(),
             token::Value::String(";".to_owned()));
         let body = Comb(self)
-            .r#try(&mut Self::parse_expr)
+            .r#try(Self::parse_expr)
             .fail_msg("Function needs a body definition".to_owned())
             .run();
         Ok(ast::FuncDef{
@@ -359,7 +359,7 @@ impl<S> Parser<S> where S: 'static + Source {
             return self.parse_primary_expr();
         }
         let lhs = Comb(self)
-            .r#try(&mut Self::parse_primary_expr)
+            .r#try(Self::parse_primary_expr)
             .fail_msg("Expected expression after call operator".to_owned())
             .run();
         let mut args = Vec::new();
@@ -385,9 +385,9 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_primary_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         if let expr @ Ok(_) = Comb(self)
-            .r#try(&mut Self::parse_ident_expr)
-            .or(&mut Self::parse_lit_expr)
-            .or(&mut Self::parse_parenthesis_expr)
+            .r#try(Self::parse_ident_expr)
+            .or(Self::parse_lit_expr)
+            .or(Self::parse_parenthesis_expr)
             .run() 
         {
             return expr;
@@ -428,7 +428,7 @@ impl<S> Parser<S> where S: 'static + Source {
         let beg = self.curr_ptr();
         self.parse_token(token::Kind::LeftParenthesis)?;
         let expr = Comb(self)
-            .r#try(&mut Self::parse_expr)
+            .r#try(Self::parse_expr)
             .fail_msg("Expression expected after opening parenthesis '('".to_owned())
             .run();
         self.try_parse_token_rec(
@@ -542,14 +542,14 @@ impl<S> Parser<S> where S: 'static + Source {
     {
         let kind_ = kind.clone();
         Comb(self)
-            .r#try(&mut move |self_: &mut Self| self_.parse_token(kind_.clone()))
+            .r#try(move |self_: &mut Self| self_.parse_token(kind_.clone()))
             .fail_unex_tok(kind, val, error_msg)
             .run()
     }
 
     fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
         Comb(self)
-            .r#try(&mut Self::parse_ident)
+            .r#try(Self::parse_ident)
             .fail_unex_tok(
                 token::Kind::Identifier,
                 token::Value::None,
