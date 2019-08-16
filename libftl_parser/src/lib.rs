@@ -78,7 +78,7 @@ impl<S> Parser<S> where S: 'static + Source {
     // Top level decl
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
-        self.push_ptr();      
+        self.push_ptr();
         let kind = if let Ok(func_decl) = self.parse_func_decl() {
             ast::TopLevelDeclKind::FunctionDecl(func_decl)
         } else if let Ok(func_def) = self.parse_func_def() {

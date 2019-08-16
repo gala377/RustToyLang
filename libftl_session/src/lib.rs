@@ -34,7 +34,7 @@ impl<S: Source> Session<S> {
         self.handler.fatal(err);
     }
 
-    pub fn emit_err<T: Write>(&self, buff: &mut T) -> io::Result<usize> {
+    pub fn emit_err(&self, buff: &mut impl Write) -> io::Result<usize> {
         match self.handler.error_msg() {
             None => Ok(0),
             Some(content) => buff.write(content.as_bytes()),
@@ -53,7 +53,7 @@ impl<S: Source> Emitter<S> {
         Self { sess }
     }
 
-    pub fn emit_err<T: Write>(&self, buff: &mut T) -> io::Result<usize> {
+    pub fn emit_err(&self, buff: &mut impl Write) -> io::Result<usize> {
         self.sess.borrow().emit_err(buff)
     }
 

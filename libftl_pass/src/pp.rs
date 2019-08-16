@@ -36,7 +36,7 @@ impl Printer {
     /// Writes syntax tree representation to the writer. 
     /// This method should be invoced only after the visiting has been done. 
     /// If the pass hasn't visited any syntax tree yet it panics.
-    pub fn write<W: Write>(&self, w: &mut W) -> io::Result<()> {
+    pub fn write(&self, w: &mut impl Write) -> io::Result<()> {
         if !self.run_already {
             panic!("Printer needs to visit a syntax tree before writing its output.")
         }
