@@ -31,58 +31,20 @@ Documentation progress:
 
 * ~~Refactor `match ... Err(err) => Err(err)` to `let smth = self.func()?`;~~
 * ~~Refactor long parse matches to `try_parse_*` functions~~
-* Refactor function and infix parsing to smaller functions
+* ~~Refactor function and infix parsing to smaller functions~~
 * Allow function types in `parse_type`
 * ~~change `end of file reached` fatals to `eof_fatal` call~~
 * ~~refactor some matches to `unwrap_or` or `unwrap_or_else`~~
-* make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context.
-* _make `save_ptr` and `retrieve_ptr` methods for parser._ - In progress
+* ~~make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context~~.
+* ~~make `save_ptr` and `retrieve_ptr` methods for parser.~~
 
-## _Combinators - WIP
-
-### Example usage
-
-```Rust
-// parse module
-Comb::new(self)
-    .many(Self::parse_top_level_decl)
-    .map(|node| module.decl.push(node))
-    .then()
-    .try(Self::parse_eof())
-    .recover().? # niew wiem jak to
-
-// parse top level
-Comb::new(self)
-    .once(Self::parse_func_decl)
-    .uwrap_with(|decl| ast::TopLevelDeclKind::FunctionDecl(decl))
-    .or().once(Self::parse_func_def)
-    .uwrap_with(|def| ast::TopLevelDeclKind::FunctionDef(def)
-    .or().once(Self::parse_infix_decl)
-    .uwrap_with(|def| ast::TopLevelDeclKind::InfixDef(def))
-    .run()
-
-Comb::new(self)
-    .try(Self::parse_int_lit)
-    .fail_with_error(|tok| {
-        Self::unexpected_token_err(
-                    token::Kind::IntLiteral,
-                    token::Value::None,
-                    tok,
-                    "Infix declaration needs to have its precendence.".to_owned() 
-        ));
-    })
-
-Comb::new(self)
-    .try(|self| self.parse_token(&token::Kind::Colon))
-    .recover("")
-
-```
+## ~~Combinators~~
 
 ## Pass module
 
 ### New passes
 
-* Pass to transform infix passes to normal calls.
+* Pass to transform infix calls to normal calls.
 * Pass which infers function types.
-* Expr type deduciton pass that fills types for the epty func decl.
+* Expr type deduction pass that fills types for the epty func decl.
 * Function decls verifier. (if decl is consistant with definition)

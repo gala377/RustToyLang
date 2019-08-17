@@ -13,6 +13,7 @@ pub mod visitor_mut;
 
 mod combinators;
 
+use combinators::utility::pres_lift_fn;
 use combinators::*;
 
 type PRes<T, P> = Result<T, ParseErr<P>>;
@@ -103,23 +104,21 @@ where
     // Function
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();
         self.parse_token(token::Kind::InfixDef)?;
-        let precedence: usize = match self.parse_int_lit() {
-            Ok(ast::Lit {
-                kind: ast::LitKind::Int(val),
-                ..
-            }) => val as usize,
-            Err(ParseErr::NotThisItem(tok)) => {
-                self.fatal(Self::unexpected_token_err(
-                    token::Kind::IntLiteral,
-                    token::Value::None,
-                    tok,
-                    "Infix declaration needs to have its precendence.".to_owned(),
-                ));
-            }
-            Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
-        };
+        let precedence = Comb(self)
+            .r#try(Self::parse_int_lit)
+            .map(pres_lift_fn(
+                |ast::Lit {
+                     kind: ast::LitKind::Int(val),
+                     ..
+                 }| val as usize,
+            ))
+            .fail_unex_tok(
+                token::Kind::IntLiteral,
+                token::Value::None,
+                "Infix declaration needs to have its precendence.".to_owned(),
+            )
+            .run();
         let op = Comb(self)
             .r#try(Self::parse_op)
             .fail_unex_tok(
@@ -128,21 +127,7 @@ where
                 "An infix needs an operator as its name.".to_owned(),
             )
             .run();
-        let beg_ = beg.clone();
-        let arg_1 = self.parse_func_arg().unwrap_or_else(|_| {
-            self.fatal(Self::msg_err(
-                "Infix needs 2 arguments".to_owned(),
-                beg_,
-                self.curr_ptr(),
-            ))
-        });
-        let arg_2 = self.parse_func_arg().unwrap_or_else(|_| {
-            self.fatal(Self::msg_err(
-                "Infix needs 2 arguments".to_owned(),
-                beg,
-                self.curr_ptr(),
-            ))
-        });
+        let (arg_1, arg_2) = self.parse_infix_decl_args();
         self.try_parse_token_rec(
             token::Kind::Colon,
             "Colon expected".to_owned(),
@@ -160,6 +145,18 @@ where
             args: (arg_1, arg_2),
             precedence,
         })
+    }
+
+    fn parse_infix_decl_args(&mut self) -> (ast::FuncArg<S::Pointer>, ast::FuncArg<S::Pointer>) {
+        let arg_1 = Comb(self)
+            .r#try(Self::parse_func_arg)
+            .fail_msg("Infix needs 2 arguments".to_owned())
+            .run();
+        let arg_2 = Comb(self)
+            .r#try(Self::parse_func_arg)
+            .fail_msg("Infix needs 2 arguments".to_owned())
+            .run();
+        (arg_1, arg_2)
     }
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
