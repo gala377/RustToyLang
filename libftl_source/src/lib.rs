@@ -1,51 +1,50 @@
-//! This module defines structs and traits that 
-//! deal with the source for the rest of the 
-//! compilation process. 
-//! 
-//! Source is any unit that could hold a source code of 
+//! This module defines structs and traits that
+//! deal with the source for the rest of the
+//! compilation process.
+//!
+//! Source is any unit that could hold a source code of
 //! the program written in the FTL language.
-//! 
+//!
 //! Module comes with two out of the box implementations
-//! of the source units. [`File`](file/struct.File.html) 
+//! of the source units. [`File`](file/struct.File.html)
 //! being file in the filesystem,
-//! and [`String`](string/struct.String.html) 
+//! and [`String`](string/struct.String.html)
 //! being incode, hardcoded string, which is
-//! nice for testing. 
-//! 
-//! Rest of the FTL libraries use 
-//! [`Source`](trait.Source.html) trait 
+//! nice for testing.
+//!
+//! Rest of the FTL libraries use
+//! [`Source`](trait.Source.html) trait
 //! (and related to it [`Pointer`](trait.Pointer.html) trait) as an
-//! abstraction over source. 
-//! No assumptions are made over the way 
+//! abstraction over source.
+//! No assumptions are made over the way
 //! the object should fetch characters so there
-//! can be implementations that fetch them from 
+//! can be implementations that fetch them from
 //! web or wait for user input.
 
 use log::info;
 
-pub mod string;
 pub mod file;
+pub mod string;
 
 /// Represents source containing program source code.
-/// 
-/// After creation the source should point to the 
-/// first character in it. 
-/// 
+///
+/// After creation the source should point to the
+/// first character in it.
+///
 /// # Examples
-/// 
-/// Example implementations can be found 
+///
+/// Example implementations can be found
 /// under [`String`](string/struct.String.html) and
 /// [`File`](file/struct.File.html) sources.
 pub trait Source {
-
     /// See [`Pointer`](trait.Pointer.html) trait.
     type Pointer: Pointer;
 
-    /// Returns current character. 
+    /// Returns current character.
     /// None should be returned if source has ended.
     fn curr_char(&self) -> Option<char>;
-    
-    /// Shifts the source pointer to the next 
+
+    /// Shifts the source pointer to the next
     /// character and returns it.
     /// None should be returned if source has ended.
     fn next_char(&mut self) -> Option<char>;
@@ -62,49 +61,49 @@ pub trait Source {
     }
 }
 
-/// Pointer represent place in corresponding source. 
-/// 
-/// Each source should have an implementation of 
-/// the pointer to it. Pointers are used to retrieve 
-/// copies of the parts of the source for error 
+/// Pointer represent place in corresponding source.
+///
+/// Each source should have an implementation of
+/// the pointer to it. Pointers are used to retrieve
+/// copies of the parts of the source for error
 /// and compile time messages.
-/// 
-/// # Examples 
-/// 
-/// Examples can be found in [`String`](string/struct.String.html) 
-/// source implementation of its corresponding 
-/// pointer struct: 
+///
+/// # Examples
+///
+/// Examples can be found in [`String`](string/struct.String.html)
+/// source implementation of its corresponding
+/// pointer struct:
 /// [`Pointer`](string/struct.Pointer.html).
-/// 
-/// Requires [`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html) 
-/// implementation as its often needed do clone span of some syntax 
-/// structure when modyfing it. 
+///
+/// Requires [`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html)
+/// implementation as its often needed do clone span of some syntax
+/// structure when modyfing it.
 pub trait Pointer: Clone {
-    /// Returns line number, starting from one, from the 
+    /// Returns line number, starting from one, from the
     /// place in the source the pointer is pointing to.
     fn line(&self) -> usize;
 
-    /// Returns number of the character in line, 
-    /// starting from one, from the place in the source 
+    /// Returns number of the character in line,
+    /// starting from one, from the place in the source
     /// the pointer is pointing to.
     fn position(&self) -> usize;
 }
 
 /// Represents range in source.
-/// 
+///
 /// Mostly used to represent range in code in which
 /// concrete symbol or some syntax unix is defined.
-/// 
+///
 /// Its important to properly handle span when
 /// modyfing syntax tree in mutable passes because
-/// resulting error messeges could be unhelpful 
+/// resulting error messeges could be unhelpful
 /// or even straight down confusing.
-/// 
+///
 /// # Examples
-/// 
-/// Cloning span information to retain insource range 
-/// after modyfing ast node value: 
-/// 
+///
+/// Cloning span information to retain insource range
+/// after modyfing ast node value:
+///
 /// ```ignore
 /// fn reverse_identifier<P: Pointer>(ident: &Ident<P>) -> Ident<P> {
 ///     Ident {
@@ -122,25 +121,25 @@ pub struct Span<T: Pointer> {
     pub end: T,
 }
 
-/// Generic test functions to test the 
-/// [`Source`](struct.Source.html) 
+/// Generic test functions to test the
+/// [`Source`](struct.Source.html)
 /// implementations with.
-/// 
-/// Implementors should make one test which 
+///
+/// Implementors should make one test which
 /// runs [`source_tests`](fn.source_tests.html) function.
-/// 
+///
 /// Additionaly there is one helper function
 /// [`assert_source`](fn.assert_source.html) which
-/// performs several checks on source state at the same time 
+/// performs several checks on source state at the same time
 /// so only one test is needed.
 pub mod tests {
 
     use super::*;
 
     /// Perform sequence of generic unit tests for the source.
-    /// 
+    ///
     /// # Arguments
-    /// * creator - factory function creating instance of the 
+    /// * creator - factory function creating instance of the
     ///     tested source from the passed `&str` content.
     pub fn source_tests<T: Source>(creator: &dyn Fn(&str) -> T) {
         info!("subtest source::tests::string_source_from_empty_str");
@@ -169,8 +168,8 @@ pub mod tests {
         getting_source_fragment_with_two_ptr(creator);
     }
 
-    /// Asserts source state equals the one passed in the arguments. 
-    /// 
+    /// Asserts source state equals the one passed in the arguments.
+    ///
     /// There are three asserts being made:
     /// * result of the [`curr_char`](../trait.Source#method.curr_char) method;
     /// * line of the currently pointed character;
@@ -192,10 +191,11 @@ pub mod tests {
         assert_source(&s, None, 1, 1);
     }
 
-
     fn reading_past_empty_source_2<T: Source>(creator: &dyn Fn(&str) -> T) {
         let mut s = creator("");
-        s.next_char(); s.next_char(); s.next_char();
+        s.next_char();
+        s.next_char();
+        s.next_char();
         assert_source(&s, None, 1, 1);
     }
 
@@ -208,7 +208,7 @@ pub mod tests {
         let raw = "abcde";
         let mut s = creator(&raw);
         for (i, ch) in raw.chars().enumerate() {
-            assert_source(&s, Some(ch), 1, i+1);
+            assert_source(&s, Some(ch), 1, i + 1);
             s.next_char();
         }
         s.next_char();
@@ -216,22 +216,29 @@ pub mod tests {
     }
 
     fn reading_new_line<T: Source>(creator: &dyn Fn(&str) -> T) {
-        let mut s = creator(r#"a
-c"#);
+        let mut s = creator(
+            r#"a
+c"#,
+        );
         s.next_char();
         assert_source(&s, Some('\n'), 1, 2);
     }
 
     fn reading_past_line<T: Source>(creator: &dyn Fn(&str) -> T) {
-        let mut s = creator(r#"a
-c"#);
-        s.next_char(); s.next_char();
+        let mut s = creator(
+            r#"a
+c"#,
+        );
+        s.next_char();
+        s.next_char();
         assert_source(&s, Some('c'), 2, 1);
     }
 
     fn new_line_at_the_end_of_source<T: Source>(creator: &dyn Fn(&str) -> T) {
-        let mut s = creator(r#"a
-"#);
+        let mut s = creator(
+            r#"a
+"#,
+        );
         s.next_char();
         assert_source(&s, Some('\n'), 1, 2);
         s.next_char();
@@ -255,12 +262,15 @@ c"#);
         for _ in raw.chars() {
             s.next_char();
         }
-        s.next_char(); s.next_char(); s.next_char();
+        s.next_char();
+        s.next_char();
+        s.next_char();
         assert_source(
-            &s, 
-            None, 
-            raw.lines().count(), 
-            raw.lines().last().unwrap().len());
+            &s,
+            None,
+            raw.lines().count(),
+            raw.lines().last().unwrap().len(),
+        );
     }
 
     fn getting_all_source_with_two_ptr<T: Source>(creator: &dyn Fn(&str) -> T) {
@@ -292,6 +302,9 @@ c"#);
             s.next_char();
         }
         let end = s.curr_ptr();
-        assert_eq!(s.source_between(&beg, &end), raw.chars().skip(10).take(11).collect::<String>());
+        assert_eq!(
+            s.source_between(&beg, &end),
+            raw.chars().skip(10).take(11).collect::<String>()
+        );
     }
 }

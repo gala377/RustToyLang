@@ -1,18 +1,43 @@
 use std::marker::PhantomData;
 
-use ftl_source::Source;
 use ftl_lexer::token;
+use ftl_source::Source;
 
-use crate::{
-    ParseErr,
-    Parser,
-};
+use crate::{ParseErr, Parser};
 
 use super::*;
 
-pub struct TryFailUnexpectedErrParser<'a, S, R, C> where
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>,
+pub struct TryComb<'a, S, R, F>(&'a mut Parser<S>, F)
+where
+    S: 'static + Source,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>;
+
+impl<'a, S, R, F> TryComb<'a, S, R, F>
+where
+    S: 'static + Source,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+{
+    pub fn chain(parser: &'a mut Parser<S>, meth: F) -> Self {
+        TryComb(parser, meth)
+    }
+}
+
+impl<'a, S, R, F> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R, F>
+where
+    S: 'static + Source,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+{
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
+        let Self(parser, func) = self;
+        let res = func(parser);
+        (parser, res)
+    }
+}
+
+pub struct TryFailUnexpectedErrParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     prev: C,
     kind: token::Kind,
@@ -23,9 +48,10 @@ pub struct TryFailUnexpectedErrParser<'a, S, R, C> where
     _r: PhantomData<R>,
 }
 
-impl<'a, S, R, C> TryFailUnexpectedErrParser<'a, S, R, C> where 
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>, 
+impl<'a, S, R, C> TryFailUnexpectedErrParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     pub fn chain(prev: C, kind: token::Kind, val: token::Value, msg: String) -> Self {
         Self {
@@ -40,34 +66,42 @@ impl<'a, S, R, C> TryFailUnexpectedErrParser<'a, S, R, C> where
     }
 }
 
-impl<'a, S, R, C> Combinator<'a, S, R> for TryFailUnexpectedErrParser<'a, S, R, C> where
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>
+impl<'a, S, R, C> Combinator<'a, S, R> for TryFailUnexpectedErrParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, R) {
-        let Self{prev, kind, val, msg, ..} = self;
+        let Self {
+            prev,
+            kind,
+            val,
+            msg,
+            ..
+        } = self;
         let (parser, res) = prev.run_chain();
-        let res = res.unwrap_or_else(
-            |err| {
-                let beg = parser.pop_ptr();                
-                match err {
-                    ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
-                    ParseErr::NotThisItem(tok) => {
-                        parser.fatal(Parser::<S>::unexpected_token_err(
-                            kind.clone(), val, tok, msg));
-                    }  
+        let res = res.unwrap_or_else(|err| {
+            let beg = parser.pop_ptr();
+            match err {
+                ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
+                ParseErr::NotThisItem(tok) => {
+                    parser.fatal(Parser::<S>::unexpected_token_err(
+                        kind.clone(),
+                        val,
+                        tok,
+                        msg,
+                    ));
                 }
             }
-        );
+        });
         (parser, res)
     }
 }
 
-
-
-pub struct TryFailMsgErrorParser<'a, S, R, C> where 
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>,
+pub struct TryFailMsgErrorParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     prev: C,
     msg: String,
@@ -76,42 +110,44 @@ pub struct TryFailMsgErrorParser<'a, S, R, C> where
     _r: PhantomData<R>,
 }
 
-impl <'a, S, R, C> TryFailMsgErrorParser<'a, S, R, C> where
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>, 
+impl<'a, S, R, C> TryFailMsgErrorParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     pub fn chain(prev: C, msg: String) -> Self {
-        Self{prev, msg, _r: PhantomData, _s: PhantomData}
+        Self {
+            prev,
+            msg,
+            _r: PhantomData,
+            _s: PhantomData,
+        }
     }
 }
 
-impl <'a, S, R, C> Combinator<'a, S, R> for TryFailMsgErrorParser<'a, S, R, C> where
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>
+impl<'a, S, R, C> Combinator<'a, S, R> for TryFailMsgErrorParser<'a, S, R, C>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, R) {
-        let Self{prev, msg, ..} = self;
+        let Self { prev, msg, .. } = self;
         let (parser, res) = prev.run_chain();
-        let res = res.unwrap_or_else(
-            |err| {
-                let beg = parser.pop_ptr();
-                match err {
-                    ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
-                    ParseErr::NotThisItem(_) => 
-                        parser.fatal(Parser::<S>::msg_err(
-                            msg,
-                            beg,
-                            parser.curr_ptr()
-                        )),
+        let res = res.unwrap_or_else(|err| {
+            let beg = parser.pop_ptr();
+            match err {
+                ParseErr::EOF => parser.eof_reached_fatal(beg, parser.curr_ptr()),
+                ParseErr::NotThisItem(_) => {
+                    parser.fatal(Parser::<S>::msg_err(msg, beg, parser.curr_ptr()))
                 }
             }
-        );
+        });
         (parser, res)
     }
 }
 
-
-pub struct OrComb<'a, S, R, C, F> where
+pub struct OrComb<'a, S, R, C, F>
+where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
     F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
@@ -123,15 +159,16 @@ pub struct OrComb<'a, S, R, C, F> where
     _s: PhantomData<&'a S>,
 }
 
-impl<'a, S, R, C, F> OrComb<'a, S, R, C, F> where
+impl<'a, S, R, C, F> OrComb<'a, S, R, C, F>
+where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
-    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     pub fn chain(prev_comb: C, fallback: F) -> Self {
-        Self{
+        Self {
             prev_comb,
-            fallback, 
+            fallback,
 
             _r: PhantomData,
             _s: PhantomData,
@@ -139,25 +176,29 @@ impl<'a, S, R, C, F> OrComb<'a, S, R, C, F> where
     }
 }
 
-impl<'a, S, R, C, F> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R, C, F> 
-    where
-        S: 'static + Source,
-        C: Combinator<'a, S, PRes<R, S::Pointer>>,
-        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+impl<'a, S, R, C, F> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R, C, F>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R, S::Pointer>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
-        let Self{prev_comb, fallback, ..} = self;
+        let Self {
+            prev_comb,
+            fallback,
+            ..
+        } = self;
         let (parser, res) = prev_comb.run_chain();
         let res = res.or_else(|_| fallback(parser));
         (parser, res)
-    }   
+    }
 }
 
-
-pub struct MapComb<'a, S, R1, R2, C, F> where 
+pub struct MapComb<'a, S, R1, R2, C, F>
+where
     S: 'static + Source,
     C: Combinator<'a, S, R1>,
-    F: Fn(R1) -> R2,
+    F: FnOnce(R1) -> R2,
 {
     prev: C,
     mapper: F,
@@ -167,30 +208,32 @@ pub struct MapComb<'a, S, R1, R2, C, F> where
     _r2: PhantomData<R2>,
 }
 
-impl<'a, S, R1, R2, C, F> MapComb<'a, S, R1, R2, C, F> where
+impl<'a, S, R1, R2, C, F> MapComb<'a, S, R1, R2, C, F>
+where
     S: 'static + Source,
     C: Combinator<'a, S, R1>,
-    F: Fn(R1) -> R2,
+    F: FnOnce(R1) -> R2,
 {
     pub fn chain(prev: C, mapper: F) -> Self {
-        Self{
+        Self {
             prev,
             mapper,
             _s: PhantomData,
             _r1: PhantomData,
-            _r2: PhantomData,    
+            _r2: PhantomData,
         }
     }
 }
 
-impl<'a, S, R1, R2, C, F> Combinator<'a, S, R2> for MapComb<'a, S, R1, R2, C, F> where
+impl<'a, S, R1, R2, C, F> Combinator<'a, S, R2> for MapComb<'a, S, R1, R2, C, F>
+where
     S: 'static + Source,
     C: Combinator<'a, S, R1>,
-    F: Fn(R1) -> R2,
+    F: FnOnce(R1) -> R2,
 {
     fn run_chain(self) -> (&'a mut Parser<S>, R2) {
-        let Self{prev, mapper, ..} = self;
+        let Self { prev, mapper, .. } = self;
         let (parser, res) = prev.run_chain();
         (parser, mapper(res))
     }
-}   
+}

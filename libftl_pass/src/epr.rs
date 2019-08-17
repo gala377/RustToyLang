@@ -1,26 +1,20 @@
-use log::{
-    debug,
-    trace,
-};
+use log::{debug, trace};
 
 use std::collections::HashMap;
 
-use ftl_session::{
-    Session,
-};
 use ftl_error::LangError;
+use ftl_session::Session;
 
+use ftl_parser::ast::*;
 use ftl_parser::visitor::*;
 use ftl_parser::visitor_mut::*;
-use ftl_parser::ast::*;
 
 use ftl_source::Pointer;
 use ftl_source::Source;
 
-
-/// Error for when the pass couldn't find 
+/// Error for when the pass couldn't find
 /// the precedence for the encountered operator.
-/// 
+///
 /// Implements the LangError traits and is reporter as fatal.
 pub struct UnknownPrecedense<P: Pointer> {
     pub e_beg: P,
@@ -29,12 +23,11 @@ pub struct UnknownPrecedense<P: Pointer> {
 }
 
 impl<P: Pointer> LangError for UnknownPrecedense<P> {
-
     type Ptr = P;
 
     fn desc(&self) -> String {
         format!("Uknown operator precedence: {}", self.ident)
-    } 
+    }
 
     fn begin(&self) -> &Self::Ptr {
         &self.e_beg
@@ -43,28 +36,29 @@ impl<P: Pointer> LangError for UnknownPrecedense<P> {
     fn end(&self) -> &Self::Ptr {
         &self.e_end
     }
-
 }
 
-/// Mutable pass reorganizing infix operator calls based 
-/// on their precedence. 
+/// Mutable pass reorganizing infix operator calls based
+/// on their precedence.
 pub struct ExprPrecReassoc<'a, S: Source> {
     sess: &'a mut Session<S>,
 }
 
-impl<'a, S: Source>  ExprPrecReassoc<'a, S> where S::Pointer: 'static {
-    
-    // Returns new ExprPrecReassoc pass ready to be run on 
+impl<'a, S: Source> ExprPrecReassoc<'a, S>
+where
+    S::Pointer: 'static,
+{
+    // Returns new ExprPrecReassoc pass ready to be run on
     // the syntax tree.
     pub fn new(sess: &'a mut Session<S>) -> Self {
         debug!("Running EPR Pass");
-        ExprPrecReassoc{
-            sess,
-        }
+        ExprPrecReassoc { sess }
     }
 }
-impl <'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S::Pointer: 'static {
-
+impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S>
+where
+    S::Pointer: 'static,
+{
     fn visit_module(&mut self, node: &mut Module<S::Pointer>) {
         loop {
             let mut epr = ExprReassocIteration::new(&mut self.sess);
@@ -76,16 +70,16 @@ impl <'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S> where S:
     }
 }
 
-/// Single iteration of reassociation. 
+/// Single iteration of reassociation.
 /// In its run it can only surface expressions one level to the top
-/// if there is some deeply nested, low precedence expression 
-/// then multiple runs of this pass are needed to fully 
+/// if there is some deeply nested, low precedence expression
+/// then multiple runs of this pass are needed to fully
 /// complete transformation.
-/// 
-/// To know if next iteration is needed 
+///
+/// To know if next iteration is needed
 /// method `result` needs to be called.
-/// If next iteration is needed this pass should be 
-/// created anew and not reused. 
+/// If next iteration is needed this pass should be
+/// created anew and not reused.
 struct ExprReassocIteration<'a, S: Source> {
     op: HashMap<String, usize>,
     sess: &'a mut Session<S>,
@@ -95,18 +89,21 @@ struct ExprReassocIteration<'a, S: Source> {
 /// Tells us if last iteration of the reassociacion pass
 /// was the final one or do we need to run one more.
 enum IterationRes {
-    RunAgain, 
+    RunAgain,
     Done,
 }
 
-impl<'a, S: Source>  ExprReassocIteration<'a, S> where S::Pointer: 'static {
-    /// Returns new ExprReassocIteration pass ready to 
+impl<'a, S: Source> ExprReassocIteration<'a, S>
+where
+    S::Pointer: 'static,
+{
+    /// Returns new ExprReassocIteration pass ready to
     /// visit a syntax tree.
-    /// 
-    /// Further initialization is done upon visiting 
+    ///
+    /// Further initialization is done upon visiting
     /// syntaxes tree module node.
     pub fn new(sess: &'a mut Session<S>) -> Self {
-        ExprReassocIteration{
+        ExprReassocIteration {
             op: HashMap::new(),
             sess,
             result: IterationRes::Done,
@@ -120,58 +117,58 @@ impl<'a, S: Source>  ExprReassocIteration<'a, S> where S::Pointer: 'static {
         self.result
     }
 
-    /// Returns precedence for the given operator. 
+    /// Returns precedence for the given operator.
     /// Fatals if the precedence could not be found.
     fn get_op_prec(&mut self, op: &Op<S::Pointer>) -> usize {
         match self.op.get(&op.symbol) {
-            None =>
-                self.sess.fatal(Box::new(
-                    UnknownPrecedense{
-                        e_beg: op.span.beg.clone(),
-                        e_end: op.span.end.clone(),
-                        ident: op.symbol.clone(),
-                    }
-                )),
+            None => self.sess.fatal(Box::new(UnknownPrecedense {
+                e_beg: op.span.beg.clone(),
+                e_end: op.span.end.clone(),
+                ident: op.symbol.clone(),
+            })),
             Some(prec) => *prec,
         }
     }
 
-    /// Returns precedence for the given expression. 
+    /// Returns precedence for the given expression.
     /// Fatals if the precedence could not be found.
     fn get_expr_prec(&mut self, expr: &Expr<S::Pointer>) -> usize {
         let mut prec = InferPrec::new(&self.op);
         prec.visit_expr(expr);
         match prec.get() {
             (Some(ident), None) => {
-                self.sess.fatal(Box::new(
-                    UnknownPrecedense{
-                        e_beg: expr.span.beg.clone(),
-                        e_end: expr.span.end.clone(),
-                        ident,
-                    }
-                ));
-            },
+                self.sess.fatal(Box::new(UnknownPrecedense {
+                    e_beg: expr.span.beg.clone(),
+                    e_end: expr.span.end.clone(),
+                    ident,
+                }));
+            }
             (_, Some(prec)) => prec,
             _ => unreachable!(),
         }
     }
 
-    /// Checks if the precedenses for the current node 
+    /// Checks if the precedenses for the current node
     /// and its lhs are reversed if so swaps them and returns true
     /// otherwise returns false.
-    fn try_prec_switch(&mut self, node: &mut Expr<S::Pointer>) -> bool{
+    fn try_prec_switch(&mut self, node: &mut Expr<S::Pointer>) -> bool {
         // FIXME: Refactor
         match node.kind {
             ExprKind::InfixOpCall(ref infix_call) => {
                 let op_prec = self.get_op_prec(&infix_call.op);
                 let lhs_prec = self.get_expr_prec(&infix_call.lhs);
-                trace!("Op {}, prec: {}, lhs_prec: {}", infix_call.op.symbol, op_prec, lhs_prec); 
+                trace!(
+                    "Op {}, prec: {}, lhs_prec: {}",
+                    infix_call.op.symbol,
+                    op_prec,
+                    lhs_prec
+                );
                 if lhs_prec < op_prec {
                     let mut new_kind = infix_call.lhs.kind.clone();
                     if let ExprKind::InfixOpCall(ref mut new_infix_call) = new_kind {
-                        new_infix_call.rhs = Box::new(Expr{
+                        new_infix_call.rhs = Box::new(Expr {
                             id: infix_call.lhs.id, // we dropped this id earlier so we can reuse it now
-                            kind: ExprKind::InfixOpCall(InfixOpCall{
+                            kind: ExprKind::InfixOpCall(InfixOpCall {
                                 lhs: new_infix_call.rhs.clone(),
                                 ..infix_call.clone()
                             }),
@@ -183,19 +180,24 @@ impl<'a, S: Source>  ExprReassocIteration<'a, S> where S::Pointer: 'static {
                     node.kind = new_kind;
                     true
                 } else {
-                    false 
+                    false
                 }
-            },
+            }
             ExprKind::InfixFuncCall(ref infix_call) => {
                 let expr_prec = self.get_expr_prec(&node);
                 let lhs_prec = self.get_expr_prec(&infix_call.lhs);
-                trace!("Op {}, prec: {}, lhs_prec: {}", infix_call.ident.symbol, expr_prec, lhs_prec); 
+                trace!(
+                    "Op {}, prec: {}, lhs_prec: {}",
+                    infix_call.ident.symbol,
+                    expr_prec,
+                    lhs_prec
+                );
                 if lhs_prec < expr_prec {
                     let mut new_kind = infix_call.lhs.kind.clone();
                     if let ExprKind::InfixOpCall(ref mut new_infix_call) = new_kind {
-                        new_infix_call.rhs = Box::new(Expr{
+                        new_infix_call.rhs = Box::new(Expr {
                             id: infix_call.lhs.id, // we dropped this id earlier so we can reuse it now
-                            kind: ExprKind::InfixFuncCall(InfixFuncCall{
+                            kind: ExprKind::InfixFuncCall(InfixFuncCall {
                                 lhs: new_infix_call.rhs.clone(),
                                 ..infix_call.clone()
                             }),
@@ -207,16 +209,18 @@ impl<'a, S: Source>  ExprReassocIteration<'a, S> where S::Pointer: 'static {
                     node.kind = new_kind;
                     true
                 } else {
-                    false 
+                    false
                 }
-            },
+            }
             _ => false,
         }
     }
 }
 
-impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprReassocIteration<'a, S> where S::Pointer: 'static {
-
+impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprReassocIteration<'a, S>
+where
+    S::Pointer: 'static,
+{
     fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
         debug!("Running EPR Pass iteration");
         let mut prec = InfixPrec::new();
@@ -237,9 +241,8 @@ impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprReassocIteration<'a, S> wher
     }
 }
 
-
-/// Goes through the abstract syntax tree once 
-/// creating map mapping operator to its precedence. 
+/// Goes through the abstract syntax tree once
+/// creating map mapping operator to its precedence.
 struct InfixPrec {
     /// Map operator symbols to their precedence.
     op: HashMap<String, usize>,
@@ -249,12 +252,11 @@ struct InfixPrec {
 }
 
 impl InfixPrec {
-
     /// Creates empty InfixPrec struct with empty map.
     pub fn new() -> Self {
-        Self{
+        Self {
             op: HashMap::new(),
-            run_already: false, 
+            run_already: false,
         }
     }
 
@@ -264,18 +266,19 @@ impl InfixPrec {
     }
 
     /// Consumes record returning map of operators with their precedences.
-    /// If run before visiting a syntax tree it panics. 
+    /// If run before visiting a syntax tree it panics.
     pub fn get(self) -> HashMap<String, usize> {
         if !self.run_already {
-            panic!("InfixPrec pass needs to be run on a syntax tree
-                before trying to access its value");
+            panic!(
+                "InfixPrec pass needs to be run on a syntax tree
+                before trying to access its value"
+            );
         }
         self.op
     }
 }
 
 impl<P: Pointer> Pass<'_, P> for InfixPrec {
-
     fn visit_module(&mut self, node: &Module<P>) {
         self.run_already = true;
         self.clear();
@@ -287,11 +290,9 @@ impl<P: Pointer> Pass<'_, P> for InfixPrec {
         let prec = node.precedence;
         self.op.insert(op, prec);
     }
-
 }
 
-
-/// Infers precedence of the visited node. 
+/// Infers precedence of the visited node.
 /// Visited node should be an expression or any of its kinds.
 /// Trying to visit any other node panics.
 struct InferPrec<'a> {
@@ -313,23 +314,25 @@ impl<'a> InferPrec<'a> {
         }
     }
 
-    /// Returns the tuple of options. 
+    /// Returns the tuple of options.
     /// First being the identifier for the function call or
-    /// the operator call. 
-    /// Second being its precedence which is usize::max() for any 
-    /// literal value and function calls and precedence set in 
-    /// infix declaration for the operator call. 
-    /// 
-    /// If the precedence for the operator call could not be found 
-    /// the precedence part of the returned value is None while the 
+    /// the operator call.
+    /// Second being its precedence which is usize::max() for any
+    /// literal value and function calls and precedence set in
+    /// infix declaration for the operator call.
+    ///
+    /// If the precedence for the operator call could not be found
+    /// the precedence part of the returned value is None while the
     /// first is still operators symbol.
-    /// 
+    ///
     /// This method should be called only after a syntax tree
     /// has been visited already. If not the method panics.
     pub fn get(&self) -> (Option<String>, Option<usize>) {
         if !self.run_already {
-            panic!("Getting the result of the InferPrec pass should be done
-                only after the syntax tree has already been visited.");
+            panic!(
+                "Getting the result of the InferPrec pass should be done
+                only after the syntax tree has already been visited."
+            );
         }
         (self.symbol.clone(), self.prec)
     }
@@ -340,23 +343,22 @@ impl<'a> InferPrec<'a> {
 }
 
 impl<'a, P: Pointer> Pass<'a, P> for InferPrec<'a> {
-
     fn visit_infix_op_call(&mut self, node: &InfixOpCall<P>) {
         self.run_already = true;
         match self.op.get(&node.op.symbol) {
             None => {
                 self.prec = None;
                 self.symbol = Some(node.op.symbol.clone());
-            },
+            }
             Some(prec) => {
                 self.prec = Some(*prec);
                 self.symbol = Some(node.op.symbol.clone());
-            },
+            }
         }
     }
 
     fn visit_func_call(&mut self, _: &FuncCall<P>) {
-        self.run_already = true;        
+        self.run_already = true;
         self.prec = Some(usize::max_value());
     }
 
@@ -383,11 +385,11 @@ impl<'a, P: Pointer> Pass<'a, P> for InferPrec<'a> {
     fn visit_module(&mut self, _node: &Module<P>) {
         self.wrong_node();
     }
-    
+
     fn visit_top_level_decl(&mut self, _node: &TopLevelDecl<P>) {
         self.wrong_node();
     }
-    
+
     fn visit_func_decl(&mut self, _node: &FuncDecl<P>) {
         self.wrong_node();
     }
@@ -395,7 +397,7 @@ impl<'a, P: Pointer> Pass<'a, P> for InferPrec<'a> {
     fn visit_func_def(&mut self, _node: &FuncDef<P>) {
         self.wrong_node();
     }
-    
+
     fn visit_infix_def(&mut self, _node: &InfixDef<P>) {
         self.wrong_node();
     }

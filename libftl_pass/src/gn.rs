@@ -1,26 +1,25 @@
-use ftl_parser::visitor::*;
 use ftl_parser::ast::*;
+use ftl_parser::visitor::*;
 
 use ftl_source::Pointer;
 
 /// Traverses the syntax tree in search of
-/// the node with the given id. 
+/// the node with the given id.
 /// If exists holds a reference to it.
-/// 
-/// Type of the searched node should be passed 
+///
+/// Type of the searched node should be passed
 /// as the generic argument.
 pub struct GetNode<'a, T> {
     node: Option<&'a T>,
-    id: usize, 
+    id: usize,
 
     run_already: bool,
 }
 
 impl<'a, T> GetNode<'a, T> {
-
-    /// Returns new GetNode pass which upon 
-    /// visiting the syntax tree will search for the 
-    /// node with the passed id. 
+    /// Returns new GetNode pass which upon
+    /// visiting the syntax tree will search for the
+    /// node with the passed id.
     pub fn new(id: usize) -> Self {
         Self {
             node: None,
@@ -29,16 +28,18 @@ impl<'a, T> GetNode<'a, T> {
         }
     }
 
-    /// If the node with the given id was found 
-    /// returns Some with the reference to it. 
+    /// If the node with the given id was found
+    /// returns Some with the reference to it.
     /// If not None is returned.
-    /// 
+    ///
     /// This method should be run only after a syntax tree
     /// has already been visited. Otherwise it panics.
     pub fn get(&self) -> &Option<&'a T> {
         if !self.run_already {
-            panic!("Accessing result of the GetNode pass should only be done after 
-                visiting a sytax tree.");
+            panic!(
+                "Accessing result of the GetNode pass should only be done after 
+                visiting a sytax tree."
+            );
         }
         &self.node
     }
@@ -125,7 +126,7 @@ impl<'a, P: Pointer> Pass<'a, P> for GetNode<'a, FuncArg<P>> {
         if node.id == self.id {
             self.set_node(node);
         }
-    }    
+    }
 }
 
 impl<'a, P: Pointer> Pass<'a, P> for GetNode<'a, Ident<P>> {

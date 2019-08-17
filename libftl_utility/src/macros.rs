@@ -1,26 +1,25 @@
 //! Definitions of helpful macros.
 
-
-/// Fails if the expression doesn't match 
-/// any of the provided patterns. 
-/// 
-/// Patterns are checked in the same order as 
+/// Fails if the expression doesn't match
+/// any of the provided patterns.
+///
+/// Patterns are checked in the same order as
 /// they were passed to the macro.
-/// 
+///
 /// # Arguments:
-/// 
+///
 /// * `e` - Expression to be matched.
 /// * `p` - One or more patterns to match the expression against.
-/// 
+///
 /// # Examples
-/// Matching on the `Option`: 
-/// 
+/// Matching on the `Option`:
+///
 /// ```rust,should_panic
 /// # #[macro_use] extern crate ftl_utility;
 /// # use ftl_utility::assert_match;
 /// # fn main() {
 /// let val = Some(5);
-/// 
+///
 /// assert_match!(val, None, Some(5)); // matches Some(5) or None
 /// assert_match!(val, None); // this fails
 /// assert_match!(val, Some(_)); // this passes
@@ -38,13 +37,12 @@ macro_rules! assert_match {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
     #[test]
     fn simple_match_passes() {
-        assert_match!(1, 1);       
+        assert_match!(1, 1);
     }
 
     #[test]

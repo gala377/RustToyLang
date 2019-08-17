@@ -1,8 +1,4 @@
-use ftl_source::{
-    Span,
-    Source, 
-    Pointer,
-};
+use ftl_source::{Pointer, Source, Span};
 
 pub struct AST<S: Source> {
     pub root: Module<S::Pointer>,
@@ -10,10 +6,8 @@ pub struct AST<S: Source> {
 
 impl<S: Source> AST<S> {
     pub fn new(root: Module<S::Pointer>) -> Self {
-        Self {
-            root,
-        }
-    } 
+        Self { root }
+    }
 }
 
 pub type NodeId = usize;
@@ -38,7 +32,7 @@ pub enum TopLevelDeclKind<T: Pointer> {
 #[derive(Clone)]
 pub struct FuncDecl<T: Pointer> {
     pub id: NodeId,
-    pub ty: Option<Type<T>>, // for now, we dont have infering yet 
+    pub ty: Option<Type<T>>, // for now, we dont have infering yet
     pub attrs: Vec<FuncAttr<T>>,
     pub ident: Ident<T>,
 }
@@ -57,20 +51,19 @@ pub struct InfixDef<T: Pointer> {
     pub op: Op<T>,
     pub args: (FuncArg<T>, FuncArg<T>),
     pub body: Expr<T>,
-
 }
 
 pub struct FuncArg<T: Pointer> {
     pub id: NodeId,
     pub ty: Option<Type<T>>,
     pub ident: Ident<T>,
-    pub span: Span<T>
+    pub span: Span<T>,
 }
 
 #[derive(Clone)]
 pub struct FuncAttr<T: Pointer> {
     pub id: NodeId,
-    pub ident: Ident<T>, 
+    pub ident: Ident<T>,
 }
 
 #[derive(Clone)]
@@ -88,9 +81,9 @@ pub enum ExprKind<T: Pointer> {
     InfixFuncCall(InfixFuncCall<T>),
     InfixOpCall(InfixOpCall<T>),
     // We need it because parser doesn't
-    // know about precedence but the 
+    // know about precedence but the
     // later passes need to know about them.
-    Parenthesed(Paren<T>), 
+    Parenthesed(Paren<T>),
 }
 
 #[derive(Clone)]
@@ -131,27 +124,24 @@ pub struct Lit<T: Pointer> {
 
 #[derive(Clone)]
 pub enum LitKind {
-     Int(u64),
+    Int(u64),
 }
 
 #[derive(Clone)]
 pub struct Op<T: Pointer> {
-    pub id: NodeId, 
-    pub symbol: String,
-    pub span: Span<T>,
-}
-
-#[derive(Clone)]
-pub struct Ident<T: Pointer> { 
     pub id: NodeId,
     pub symbol: String,
     pub span: Span<T>,
 }
 
-
+#[derive(Clone)]
+pub struct Ident<T: Pointer> {
+    pub id: NodeId,
+    pub symbol: String,
+    pub span: Span<T>,
+}
 
 /// Types
-
 
 #[derive(Clone)]
 pub struct Type<T: Pointer> {
@@ -163,7 +153,7 @@ pub struct Type<T: Pointer> {
 #[derive(Clone)]
 pub enum TypeKind<T: Pointer> {
     Function(FuncType<T>),
-    Literal(LitType)    
+    Literal(LitType),
 }
 
 #[derive(Clone)]
@@ -175,7 +165,7 @@ pub struct FuncType<T: Pointer> {
 
 #[derive(Clone)]
 pub enum LitType {
-    Int, 
+    Int,
     Void,
 }
 
@@ -187,6 +177,3 @@ pub fn is_lit_type(symbol: &str) -> Option<LitType> {
         _ => None,
     }
 }
-
-
-

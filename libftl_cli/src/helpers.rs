@@ -1,14 +1,23 @@
-use termion::{
-    style,
-    color,
-};
+use termion::{color, style};
 
 pub fn print_red(s: &str) {
-    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Red), s, style::Reset);
+    println!(
+        "\t{}{}{}{}",
+        style::Bold,
+        color::Fg(color::Red),
+        s,
+        style::Reset
+    );
 }
 
 pub fn print_green(s: &str) {
-    println!("\t{}{}{}{}", style::Bold, color::Fg(color::Green), s, style::Reset);
+    println!(
+        "\t{}{}{}{}",
+        style::Bold,
+        color::Fg(color::Green),
+        s,
+        style::Reset
+    );
 }
 
 pub fn print_line() {

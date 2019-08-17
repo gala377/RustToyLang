@@ -8,7 +8,7 @@ pub enum Kind {
     // General
     Identifier,
     InfixIdent,
-    Comment, 
+    Comment,
     Operator,
 
     // Keywords
@@ -19,15 +19,15 @@ pub enum Kind {
     // Operators
     LeftParenthesis,
     RightParenthesis,
-    Comma, 
+    Comma,
     Colon,
-    At, 
-    
+    At,
+
     // Literals
     IntLiteral,
 
     // Special
-    /// Poisoned token represents invalid token 
+    /// Poisoned token represents invalid token
     Poisoned,
 }
 
@@ -43,7 +43,7 @@ pub struct Token<T: ftl_source::Pointer> {
     pub kind: Kind,
     pub value: Value,
     pub span: ftl_source::Span<T>,
-} 
+}
 
 impl<Ptr: ftl_source::Pointer> Display for Token<Ptr> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -55,6 +55,7 @@ impl<Ptr: ftl_source::Pointer> Display for Token<Ptr> {
             self.span.beg.line(),
             self.span.beg.position(),
             self.span.end.line(),
-            self.span.end.position())
+            self.span.end.position()
+        )
     }
 }

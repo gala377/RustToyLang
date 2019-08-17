@@ -1,19 +1,10 @@
-use log::{
-    debug,
-};
+use log::debug;
 
-use ftl_utility::RcRef;
-use ftl_lexer::{
-    Lexer,
-    token,
-};
-use ftl_session::Session;
-use ftl_source::{
-    Source,
-    Span,
-};
 use ftl_error::LangError;
-
+use ftl_lexer::{token, Lexer};
+use ftl_session::Session;
+use ftl_source::{Pointer, Source, Span};
+use ftl_utility::RcRef;
 
 pub mod ast;
 pub mod errors;
@@ -23,21 +14,23 @@ pub mod visitor_mut;
 mod combinators;
 
 use combinators::*;
-
+use combinators::utility::pres_lift_fn;
 
 type PRes<T, P> = Result<T, ParseErr<P>>;
 
 pub struct Parser<S: Source> {
-    sess: RcRef<Session<S>>, 
+    sess: RcRef<Session<S>>,
     lexer: Lexer<S>,
 
     node_id: ast::NodeId,
     saved_ptrs: Vec<S::Pointer>,
 }
 
-impl<S> Parser<S> where S: 'static + Source {
-
-    // Public interface 
+impl<S> Parser<S>
+where
+    S: 'static + Source,
+{
+    // Public interface
 
     pub fn new(lexer: Lexer<S>, sess: RcRef<Session<S>>) -> Self {
         Self {
@@ -58,12 +51,19 @@ impl<S> Parser<S> where S: 'static + Source {
     // Parsing methods
 
     fn parse_module(&mut self) -> PRes<ast::Module<S::Pointer>, S::Pointer> {
-        let mut module = ast::Module{ id: self.next_node_id(), decl: Vec::new() };
+        let mut module = ast::Module {
+            id: self.next_node_id(),
+            decl: Vec::new(),
+        };
         while let Ok(node) = self.parse_top_level_decl() {
             module.decl.push(node);
         }
         if let Err(ParseErr::NotThisItem(tok)) = self.parse_eof() {
-            self.err(Self::msg_err("End of file expected".to_owned(), tok.span.beg, tok.span.end));
+            self.err(Self::msg_err(
+                "End of file expected".to_owned(),
+                tok.span.beg,
+                tok.span.end,
+            ));
         }
         Ok(module)
     }
@@ -79,6 +79,14 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         self.push_ptr();
+        // let kind = Comb(self)
+        //     .r#try(Self::parse_func_decl)
+        //     .map(pres_lift_fn(|decl| ast::TopLevelDeclKind::FunctionDecl(decl)))
+        //     .or(Self::parse_func_def)
+        //     .map(pres_lift_fn(|def| ast::TopLevelDeclKind::FunctionDef(def)))
+        //     .or(Self::parse_infix_decl)
+        //     .map(pres_lift_fn(|def| ast::TopLevelDeclKind::InfixDef(def)))
+        //     .run();
         let kind = if let Ok(func_decl) = self.parse_func_decl() {
             ast::TopLevelDeclKind::FunctionDecl(func_decl)
         } else if let Ok(func_def) = self.parse_func_def() {
@@ -88,14 +96,14 @@ impl<S> Parser<S> where S: 'static + Source {
         } else {
             return Err(match self.lexer.curr() {
                 Some(tok) => ParseErr::NotThisItem(tok),
-                None => ParseErr::EOF, 
+                None => ParseErr::EOF,
             });
         };
-        Ok(ast::TopLevelDecl{
+        Ok(ast::TopLevelDecl {
             id: self.next_node_id(),
             kind,
             span: Span {
-                beg: self.pop_ptr(), 
+                beg: self.pop_ptr(),
                 end: self.curr_ptr(),
             },
         })
@@ -104,18 +112,21 @@ impl<S> Parser<S> where S: 'static + Source {
     // Function
 
     fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
-        let beg = self.curr_ptr();        
+        let beg = self.curr_ptr();
         self.parse_token(token::Kind::InfixDef)?;
         let precedence: usize = match self.parse_int_lit() {
-            Ok(ast::Lit {kind: ast::LitKind::Int(val), .. } ) => val as usize,
+            Ok(ast::Lit {
+                kind: ast::LitKind::Int(val),
+                ..
+            }) => val as usize,
             Err(ParseErr::NotThisItem(tok)) => {
                 self.fatal(Self::unexpected_token_err(
                     token::Kind::IntLiteral,
                     token::Value::None,
                     tok,
-                    "Infix declaration needs to have its precendence.".to_owned() 
+                    "Infix declaration needs to have its precendence.".to_owned(),
                 ));
-            },
+            }
             Err(ParseErr::EOF) => self.eof_reached_fatal(beg, self.curr_ptr()),
         };
         let op = Comb(self)
@@ -123,31 +134,37 @@ impl<S> Parser<S> where S: 'static + Source {
             .fail_unex_tok(
                 token::Kind::Operator,
                 token::Value::None,
-                "An infix needs an operator as its name.".to_owned())
+                "An infix needs an operator as its name.".to_owned(),
+            )
             .run();
         let beg_ = beg.clone();
-        let arg_1 = self.parse_func_arg().unwrap_or_else(
-            |_| self.fatal(Self::msg_err(
-                    "Infix needs 2 arguments".to_owned(),
-                    beg_,
-                    self.curr_ptr())));
-        let arg_2 = self.parse_func_arg().unwrap_or_else(
-            |_| self.fatal(Self::msg_err(
-                    "Infix needs 2 arguments".to_owned(),
-                    beg,
-                    self.curr_ptr())));
+        let arg_1 = self.parse_func_arg().unwrap_or_else(|_| {
+            self.fatal(Self::msg_err(
+                "Infix needs 2 arguments".to_owned(),
+                beg_,
+                self.curr_ptr(),
+            ))
+        });
+        let arg_2 = self.parse_func_arg().unwrap_or_else(|_| {
+            self.fatal(Self::msg_err(
+                "Infix needs 2 arguments".to_owned(),
+                beg,
+                self.curr_ptr(),
+            ))
+        });
         self.try_parse_token_rec(
             token::Kind::Colon,
             "Colon expected".to_owned(),
-            token::Value::String(";".to_owned()));
+            token::Value::String(";".to_owned()),
+        );
         let body = Comb(self)
             .r#try(Self::parse_expr)
             .fail_msg("Infix needs a body definition".to_owned())
             .run();
-        Ok(ast::InfixDef{
+        Ok(ast::InfixDef {
             id: self.next_node_id(),
             ty: None,
-            op,       
+            op,
             body,
             args: (arg_1, arg_2),
             precedence,
@@ -156,14 +173,15 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
         self.parse_token(token::Kind::FuncDecl)?;
-        let ident = self.try_parse_ident_fail(
-            "A function needs an identifier as its name.".to_owned());
+        let ident =
+            self.try_parse_ident_fail("A function needs an identifier as its name.".to_owned());
         let args_t = self.parse_func_args_types().unwrap_or_default();
         let attrs = self.parse_func_attrs().unwrap_or_default();
         self.try_parse_token_rec(
             token::Kind::Colon,
             "Colon expected".to_owned(),
-            token::Value::String(")".to_owned()));
+            token::Value::String(")".to_owned()),
+        );
         let ret_t = self.parse_type()?;
         Ok(ast::FuncDecl {
             id: self.next_node_id(),
@@ -177,13 +195,11 @@ impl<S> Parser<S> where S: 'static + Source {
                     },
                     end: ret_t.span.end.clone(),
                 },
-                kind: ast::TypeKind::Function(
-                    ast::FuncType{
-                        id: self.next_node_id(),
-                        ret: Box::new(ret_t),
-                        args: args_t.into_iter().map(|x| Box::new(x)).collect(),
+                kind: ast::TypeKind::Function(ast::FuncType {
+                    id: self.next_node_id(),
+                    ret: Box::new(ret_t),
+                    args: args_t.into_iter().map(|x| Box::new(x)).collect(),
                 }),
-     
             }),
             attrs,
             ident,
@@ -195,11 +211,10 @@ impl<S> Parser<S> where S: 'static + Source {
         let beg = self.peek_ptr().clone();
         while let Ok(t) = self.parse_type() {
             if let ast::TypeKind::Literal(ast::LitType::Void) = t.kind {
-                self.err(
-                    Self::msg_err(
-                        "Void can only be used as function return argument".to_owned(),
-                        beg.clone(),
-                        t.span.end,
+                self.err(Self::msg_err(
+                    "Void can only be used as function return argument".to_owned(),
+                    beg.clone(),
+                    t.span.end,
                 ))
             } else {
                 args.push(t);
@@ -212,7 +227,7 @@ impl<S> Parser<S> where S: 'static + Source {
         // todo allow function types
         let ident = self.parse_ident()?;
         if let Some(lit) = ast::is_lit_type(&ident.symbol) {
-            Ok(ast::Type{
+            Ok(ast::Type {
                 id: self.next_node_id(),
                 kind: ast::TypeKind::Literal(lit),
                 span: ident.span,
@@ -229,39 +244,40 @@ impl<S> Parser<S> where S: 'static + Source {
         self.parse_token(token::Kind::LeftParenthesis)?;
         let mut attrs = Vec::new();
         while let Ok(attr) = self.parse_ident() {
-            attrs.push(
-                ast::FuncAttr{
-                    id: self.next_node_id(),
-                    ident: attr,
+            attrs.push(ast::FuncAttr {
+                id: self.next_node_id(),
+                ident: attr,
             });
         }
         self.try_parse_token_rec(
-            token::Kind::RightParenthesis, 
+            token::Kind::RightParenthesis,
             "Unclosed attributes parenthesis".to_owned(),
-            token::Value::String(")".to_owned()));
+            token::Value::String(")".to_owned()),
+        );
         Ok(attrs)
     }
 
     fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
         self.parse_token(token::Kind::FuncDef)?;
-        let ident = self.try_parse_ident_fail(
-            "A function needs an identifier as its name.".to_owned());
+        let ident =
+            self.try_parse_ident_fail("A function needs an identifier as its name.".to_owned());
         let args = self.parse_func_args();
         let attrs = self.parse_func_attrs().unwrap_or_default();
         self.try_parse_token_rec(
             token::Kind::Colon,
             "Colon expected".to_owned(),
-            token::Value::String(";".to_owned()));
+            token::Value::String(";".to_owned()),
+        );
         let body = Comb(self)
             .r#try(Self::parse_expr)
             .fail_msg("Function needs a body definition".to_owned())
             .run();
-        Ok(ast::FuncDef{
+        Ok(ast::FuncDef {
             id: self.next_node_id(),
             decl: ast::FuncDecl {
                 id: self.next_node_id(),
                 ident,
-                attrs,             
+                attrs,
                 ty: None,
             },
             args,
@@ -278,7 +294,7 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
-        let ident = self.parse_ident()?; 
+        let ident = self.parse_ident()?;
         Ok(ast::FuncArg {
             id: self.next_node_id(),
             ty: None,
@@ -286,11 +302,11 @@ impl<S> Parser<S> where S: 'static + Source {
                 beg: ident.span.clone().beg,
                 end: ident.span.clone().end,
             },
-            ident: ident, 
+            ident: ident,
         })
     }
 
-    // Expr 
+    // Expr
 
     fn parse_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         self.parse_infix_expr()
@@ -298,17 +314,16 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn parse_infix_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
         let mut lhs = self.parse_func_call()?;
-        while let Ok(op) = self.one_of_tok(vec![
-            token::Kind::InfixIdent,
-            token::Kind::Operator]) 
-        {
+        while let Ok(op) = self.one_of_tok(vec![token::Kind::InfixIdent, token::Kind::Operator]) {
             let beg = self.curr_ptr();
             let rhs = match self.parse_func_call() {
                 Ok(expr) => expr,
                 _ => {
                     self.err(Self::msg_err(
                         "Expected primary expression after operator or infix call".to_owned(),
-                        beg, self.curr_ptr()));
+                        beg,
+                        self.curr_ptr(),
+                    ));
                     break;
                 }
             };
@@ -316,38 +331,35 @@ impl<S> Parser<S> where S: 'static + Source {
                 token::Value::String(s) => s,
                 _ => unreachable!(),
             };
-            lhs = ast::Expr{
+            lhs = ast::Expr {
                 id: self.next_node_id(),
                 span: Span {
                     beg: lhs.span.clone().beg,
                     end: self.curr_ptr(),
                 },
                 kind: match op.kind {
-                    token::Kind::InfixIdent => ast::ExprKind::InfixFuncCall(
-                        ast::InfixFuncCall{
+                    token::Kind::InfixIdent => ast::ExprKind::InfixFuncCall(ast::InfixFuncCall {
+                        id: self.next_node_id(),
+                        ident: ast::Ident {
                             id: self.next_node_id(),
-                            ident: ast::Ident{
-                                id: self.next_node_id(),
-                                symbol: sym,
-                                span: op.span,
-                            },
-                            lhs: Box::new(lhs),
-                            rhs: Box::new(rhs),
+                            symbol: sym,
+                            span: op.span,
+                        },
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
                     }),
-                    token::Kind::Operator => ast::ExprKind::InfixOpCall(
-                        ast::InfixOpCall{
+                    token::Kind::Operator => ast::ExprKind::InfixOpCall(ast::InfixOpCall {
+                        id: self.next_node_id(),
+                        op: ast::Op {
                             id: self.next_node_id(),
-                            op: ast::Op {
-                                id: self.next_node_id(),
-                                symbol: sym,
-                                span: op.span,
-                            },
-                            lhs: Box::new(lhs),
-                            rhs: Box::new(rhs),
-                            
+                            symbol: sym,
+                            span: op.span,
+                        },
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
                     }),
                     _ => unreachable!(),
-                } 
+                },
             }
         }
         Ok(lhs)
@@ -372,11 +384,10 @@ impl<S> Parser<S> where S: 'static + Source {
                 beg,
                 end: self.curr_ptr(),
             },
-            kind: ast::ExprKind::FunctionCall(
-                ast::FuncCall{
-                    id: self.next_node_id(),
-                    lhs: Box::new(lhs),
-                    args: args,
+            kind: ast::ExprKind::FunctionCall(ast::FuncCall {
+                id: self.next_node_id(),
+                lhs: Box::new(lhs),
+                args: args,
             }),
         })
     }
@@ -388,7 +399,7 @@ impl<S> Parser<S> where S: 'static + Source {
             .r#try(Self::parse_ident_expr)
             .or(Self::parse_lit_expr)
             .or(Self::parse_parenthesis_expr)
-            .run() 
+            .run()
         {
             return expr;
         }
@@ -399,29 +410,30 @@ impl<S> Parser<S> where S: 'static + Source {
     }
 
     fn parse_ident_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        self.parse_ident().and_then(
-            |ident: ast::Ident<S::Pointer>|
-                Ok(ast::Expr{
+        self.parse_ident()
+            .and_then(|ident: ast::Ident<S::Pointer>| {
+                Ok(ast::Expr {
                     id: self.next_node_id(),
                     span: Span {
                         beg: ident.span.clone().beg,
                         end: ident.span.clone().end,
                     },
                     kind: ast::ExprKind::Identifier(ident),
-        }))
+                })
+            })
     }
 
     fn parse_lit_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        self.parse_lit().and_then(
-            |lit: ast::Lit<S::Pointer>|
-                Ok(ast::Expr{
-                    id: self.next_node_id(),
-                    span: Span {
-                        beg: lit.span.clone().beg,
-                        end: lit.span.clone().end,
-                    },
-                    kind: ast::ExprKind::Literal(lit),
-        })) 
+        self.parse_lit().and_then(|lit: ast::Lit<S::Pointer>| {
+            Ok(ast::Expr {
+                id: self.next_node_id(),
+                span: Span {
+                    beg: lit.span.clone().beg,
+                    end: lit.span.clone().end,
+                },
+                kind: ast::ExprKind::Literal(lit),
+            })
+        })
     }
 
     fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
@@ -434,19 +446,18 @@ impl<S> Parser<S> where S: 'static + Source {
         self.try_parse_token_rec(
             token::Kind::RightParenthesis,
             "Expected closing parenthesis".to_owned(),
-            token::Value::String(String::from(")")));
-        Ok(ast::Expr{
+            token::Value::String(String::from(")")),
+        );
+        Ok(ast::Expr {
             id: self.next_node_id(),
             span: Span {
                 beg,
                 end: self.curr_ptr(),
             },
-            kind: ast::ExprKind::Parenthesed(
-                ast::Paren{
-                    id: self.next_node_id(),
-                    expr: Box::new(expr),
-                }
-            ),
+            kind: ast::ExprKind::Parenthesed(ast::Paren {
+                id: self.next_node_id(),
+                expr: Box::new(expr),
+            }),
         })
     }
 
@@ -492,54 +503,62 @@ impl<S> Parser<S> where S: 'static + Source {
                 span: Span {
                     beg,
                     end: self.curr_ptr(),
-                }
+                },
             })
         } else {
             unreachable!();
         }
     }
 
-    // Parse helpers 
+    // Parse helpers
 
     fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         match self.lexer.curr() {
-            Some(tok) => 
+            Some(tok) => {
                 if tok.kind == kind {
                     self.lexer.next();
                     Ok(tok)
                 } else {
                     Err(ParseErr::NotThisItem(tok))
-                },
-            _ => Err(ParseErr::EOF), 
+                }
+            }
+            _ => Err(ParseErr::EOF),
         }
     }
 
-    fn try_parse_token_rec(&mut self, kind: token::Kind, error_msg: String, val: token::Value) -> token::Token<S::Pointer> {
+    fn try_parse_token_rec(
+        &mut self,
+        kind: token::Kind,
+        error_msg: String,
+        val: token::Value,
+    ) -> token::Token<S::Pointer> {
         let beg = self.peek_ptr().clone();
-        self.parse_token(kind.clone()).unwrap_or_else(
-            |err| match err {
+        self.parse_token(kind.clone())
+            .unwrap_or_else(|err| match err {
                 ParseErr::EOF => self.eof_reached_fatal(beg, self.curr_ptr()),
                 ParseErr::NotThisItem(tok) => {
                     self.err(Self::unexpected_token_err(
                         kind.clone(),
-                        val.clone(), 
-                        tok.clone(), 
-                        error_msg));
+                        val.clone(),
+                        tok.clone(),
+                        error_msg,
+                    ));
                     token::Token {
                         span: tok.span,
                         kind: kind,
                         value: val,
                     }
                 }
-        })
+            })
     }
 
     #[allow(dead_code)]
-    fn try_parse_token_fail(&mut self, 
-            kind: token::Kind,
-            error_msg: String,
-            val: token::Value) -> token::Token<S::Pointer> 
-    {
+    fn try_parse_token_fail(
+        &mut self,
+        kind: token::Kind,
+        error_msg: String,
+        val: token::Value,
+    ) -> token::Token<S::Pointer> {
         let kind_ = kind.clone();
         Comb(self)
             .r#try(move |self_: &mut Self| self_.parse_token(kind_.clone()))
@@ -550,10 +569,7 @@ impl<S> Parser<S> where S: 'static + Source {
     fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
         Comb(self)
             .r#try(Self::parse_ident)
-            .fail_unex_tok(
-                token::Kind::Identifier,
-                token::Value::None,
-                error_msg)
+            .fail_unex_tok(token::Kind::Identifier, token::Value::None, error_msg)
             .run()
     }
 
@@ -563,7 +579,10 @@ impl<S> Parser<S> where S: 'static + Source {
         tmp
     }
 
-    fn one_of_tok(&mut self, kinds: Vec<token::Kind>) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+    fn one_of_tok(
+        &mut self,
+        kinds: Vec<token::Kind>,
+    ) -> PRes<token::Token<S::Pointer>, S::Pointer> {
         for k in kinds {
             if let ret @ Ok(_) = self.parse_token(k) {
                 return ret;
@@ -584,12 +603,16 @@ impl<S> Parser<S> where S: 'static + Source {
 
     fn pop_ptr(&mut self) -> S::Pointer {
         debug!("Poping value from the ptr stack");
-        self.saved_ptrs.pop().expect("Poping from empty pointer stack")
+        self.saved_ptrs
+            .pop()
+            .expect("Poping from empty pointer stack")
     }
 
     fn peek_ptr(&mut self) -> &S::Pointer {
         debug!("Peeping value on the ptr stack");
-        self.saved_ptrs.last().expect("Peeking from empty pointer stack")
+        self.saved_ptrs
+            .last()
+            .expect("Peeking from empty pointer stack")
     }
 
     // Delegations
@@ -597,18 +620,17 @@ impl<S> Parser<S> where S: 'static + Source {
     fn curr_ptr(&self) -> S::Pointer {
         self.lexer.curr_ptr()
     }
-    
-    fn err(&mut self, err: Box<dyn LangError<Ptr=S::Pointer>>) {
+
+    fn err(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) {
         self.sess.borrow_mut().err(err)
     }
 
-    fn fatal(&mut self, err: Box<dyn LangError<Ptr=S::Pointer>>) -> ! {
+    fn fatal(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) -> ! {
         self.sess.borrow_mut().fatal(err)
     }
 
     fn eof_reached_fatal(&mut self, beg: S::Pointer, end: S::Pointer) -> ! {
-        self.fatal(Self::msg_err(
-            "End of file reached".to_owned(), beg, end))
+        self.fatal(Self::msg_err("End of file reached".to_owned(), beg, end))
     }
 
     // Errors
@@ -619,58 +641,49 @@ impl<S> Parser<S> where S: 'static + Source {
         value: token::Value,
         beg: S::Pointer,
         end: S::Pointer,
-        msg: String) -> Box<dyn LangError<Ptr=S::Pointer>> 
-    {
-        let tok = token::Token{
+        msg: String,
+    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
+        let tok = token::Token {
             kind,
             value,
-            span: Span {
-                beg,
-                end,
-            },
+            span: Span { beg, end },
         };
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(
-            errors::ParserError{
-                msg: format!("Expected token {}. {}", tok, msg),
-                kind: errors::ParserErrorKind::TokenExpected(tok),
-            }
-        );
-        err 
+        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+            msg: format!("Expected token {}. {}", tok, msg),
+            kind: errors::ParserErrorKind::TokenExpected(tok),
+        });
+        err
     }
 
     fn unexpected_token_err(
         kind: token::Kind,
         value: token::Value,
         actual: token::Token<S::Pointer>,
-        msg: String) -> Box<dyn LangError<Ptr=S::Pointer>> 
-    {
-        let expected = token::Token{
+        msg: String,
+    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
+        let expected = token::Token {
             kind,
             value,
             span: actual.span.clone(),
         };
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(
-            errors::ParserError{
-                msg: format!("Expected token {}, got {}. {}", expected, actual, msg),
-                kind: errors::ParserErrorKind::UnexpectedToken{
-                    expected, 
-                    actual,
-                },
-            }
-        );
-        err  
-    }
-
-    fn msg_err(msg: String, beg: S::Pointer, end: S::Pointer) -> Box<dyn LangError<Ptr=S::Pointer>> {
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(
-            errors::ParserError{
-                msg,
-                kind: errors::ParserErrorKind::Msg(Span{beg: beg, end: end}),
-            }
-        );
+        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+            msg: format!("Expected token {}, got {}. {}", expected, actual, msg),
+            kind: errors::ParserErrorKind::UnexpectedToken { expected, actual },
+        });
         err
     }
 
+    fn msg_err(
+        msg: String,
+        beg: S::Pointer,
+        end: S::Pointer,
+    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
+        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+            msg,
+            kind: errors::ParserErrorKind::Msg(Span { beg: beg, end: end }),
+        });
+        err
+    }
 }
 
 #[derive(Debug)]

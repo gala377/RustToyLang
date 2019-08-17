@@ -2,21 +2,16 @@ use std::io;
 
 use simplelog::*;
 
-use ftl_source::string::String;
 use ftl_lexer::Lexer;
-use ftl_session::{
-    Session, 
-    Emitter,
-};
+use ftl_parser::Parser;
+use ftl_session::{Emitter, Session};
+use ftl_source::string::String;
 use ftl_utility::RcRef;
-use ftl_parser::{
-    Parser,
-};
 
 // test
-use ftl_pass::epr::ExprPrecReassoc;
 use ftl_parser::visitor_mut::visit_ast_mut;
 use ftl_pass::dm::DeclarationMerge;
+use ftl_pass::epr::ExprPrecReassoc;
 // test
 
 mod helpers;
@@ -61,37 +56,37 @@ fn main() -> io::Result<()> {
         LevelFilter::Warn
     });
     let sess = create_sess();
-    
+
     print_green("✔ Created");
     print_line();
     print_red("🐿 Creating Lexer...");
     let lexer = Lexer::new(sess.clone());
-    
+
     print_green("✔ Created");
-    print_line();    
+    print_line();
 
     print_red("🐊 Creating parser...");
     let mut parser = Parser::new(lexer, sess.clone());
-    
+
     print_green("✔ Created");
     print_line();
     print_red("🦎 Creating error emitter...");
     let emmiter = Emitter::new(sess.clone());
-    
+
     print_green("✔ Created");
 
     print_line();
     print_red("🐉 Parsing source...");
     let mut ast = parser.parse();
-    
+
     print_green("✔ Source parsed");
-    
-    let mut ppp = phase::ppp::PrettyPrint{};
+
+    let mut ppp = phase::ppp::PrettyPrint {};
     ppp.run_wrapped(&mut ast);
 
     print_line();
     print_red("Running EPR pass...");
-    
+
     {
         let mut sess_ref = sess.borrow_mut();
         let mut epr = ExprPrecReassoc::new(&mut sess_ref);
@@ -99,29 +94,29 @@ fn main() -> io::Result<()> {
     }
     {
         let mut dm = DeclarationMerge::new();
-        visit_ast_mut(&mut dm, &mut ast);   
+        visit_ast_mut(&mut dm, &mut ast);
     }
 
     print_green("Done...");
 
-    let mut ppp = phase::ppp::PrettyPrint{};
+    let mut ppp = phase::ppp::PrettyPrint {};
     ppp.run_wrapped(&mut ast);
 
     print_line();
 
     print_errors(&emmiter)?;
-    
+
     print_line();
     print_green("✔ Done");
     print_line();
-    
+
     Ok(())
 }
 
 fn create_sess() -> RcRef<Session<ftl_source::string::String>> {
     println!();
     print_red("🦊 Compilation starts...");
-    print_line();    
+    print_line();
     print_red("🦒 Creating source and session...");
     RcRef::new(Session::new(String::from(SOURCE)))
 }
@@ -130,7 +125,7 @@ fn print_errors<S: ftl_source::Source>(emmiter: &Emitter<S>) -> std::io::Result<
     print_line();
     print_red("🐺 Printing errors...");
     print_line();
-    let mut out = std::io::stdout();    
+    let mut out = std::io::stdout();
     emmiter.emit_err(&mut out)?;
     print_line();
     print_green("✔ Done");
@@ -138,9 +133,5 @@ fn print_errors<S: ftl_source::Source>(emmiter: &Emitter<S>) -> std::io::Result<
 }
 
 fn init_logger(filter: LevelFilter) {
-    CombinedLogger::init(
-        vec![
-            TermLogger::new(filter, Config::default()).unwrap(),
-        ]
-    ).unwrap();
+    CombinedLogger::init(vec![TermLogger::new(filter, Config::default()).unwrap()]).unwrap();
 }
