@@ -10,8 +10,15 @@ pub fn is_part_of_ident(ch: char) -> bool {
 
 pub fn is_part_of_op(ch: char) -> bool {
     match ch {
-        '+' | '(' | ')' | ',' | '-' | ':' | '~' | '!' | '@' | '$' | '%' | '^' | '&' | '*' | '='
-        | ';' | '<' | '.' | '?' | '>' | '|' | '/' | '[' | ']' => true,
+        '+' | ',' | '-' | ':' | '~' | '!' | '@' | '$' | '%' | '^' | '&' | '*' | '=' | ';' | '<'
+        | '.' | '?' | '>' | '|' | '/' | '{' | '}' => true,
+        _ => false,
+    }
+}
+
+pub fn is_part_of_parenthesis(ch: char) -> bool {
+    match ch {
+        '(' | ')' | '[' | ']' => true,
         _ => false,
     }
 }
@@ -19,10 +26,18 @@ pub fn is_part_of_op(ch: char) -> bool {
 pub fn is_operator(symbol: &str) -> Option<token::Kind> {
     match symbol {
         "," => Some(token::Kind::Comma),
-        "(" => Some(token::Kind::LeftParenthesis),
-        ")" => Some(token::Kind::RightParenthesis),
         ":" => Some(token::Kind::Colon),
         "@" => Some(token::Kind::At),
+        _ => None,
+    }
+}
+
+pub fn is_parenthesis(symbol: &str) -> Option<token::Kind> {
+    match symbol {
+        "(" => Some(token::Kind::LeftParenthesis),
+        ")" => Some(token::Kind::RightParenthesis),
+        "[" => Some(token::Kind::LeftBracket),
+        "]" => Some(token::Kind::RightBracket),
         _ => None,
     }
 }

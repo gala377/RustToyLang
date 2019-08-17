@@ -12,6 +12,10 @@ In the later syntax definitions there will be some variables used.
 Namely `ident`, `op`, `int_lit`. Writing `EBNF` notation for them
 is still _work in progress_.
 
+One note about the operators is that the parenthesis characters, namely
+`(`, `)`, `[` and `]` cannot be part of any operator. But `{` and `}` can
+so use those.
+
 ### Comments
 
 Only line comments are present.
@@ -32,7 +36,7 @@ def test: 5 # some comment after function definition
 ### Function definition
 
 ```ebnf
-func_def = "def", ident, {ident}, ["(", {ident}, ") "], ":", expr
+func_def = "def", ident, {ident}, ["[", {ident}, "]"], ":", expr
 ```
 
 Function definition stars with the keyword `def`.
@@ -49,19 +53,14 @@ Following is the colos and then expression being the functions body.
 ```ftl
 def multiple_args a b c: a + b + c
 def return_some_val: 2+2*2
-def with_attributes (attr1 attr2) : 2
-def args_and_attrs a b c (at_1 at_2 at_3) : 3
+def with_attributes [attr1 attr2]: 2
+def args_and_attrs a b c [at_1 at_2 at_3]: 3
 ```
-
-Its important to note that after closing parenthesis of the attributes
-list there needs to be space between it and the colon.
-It is so because the resulting `):` is read as the operator which
-creates syntax error.
 
 ### Function declaration
 
 ```ebnf
-func_decl = "decl", ident, {ident}, ["(", {ident}, ") "], ":", ident
+func_decl = "decl", ident, {ident}, ["[", {ident}, "]"], ":", ident
 ```
 
 Function declarations is similar to the function definition.
@@ -73,10 +72,10 @@ doesn't return anything).
 #### FuncDecl Examples
 
 ```ftl
-decl nop (lang_nop) : void
-decl add int int (lang_add inline) : int
+decl nop [lang_nop] : void
+decl add int int [lang_add inline] : int
 decl foo int int: int
-decl test3 (test1 test2) : int
+decl test3 [test1 test2] : int
 ```
 
 ### Infix declaration
@@ -88,7 +87,7 @@ as the binary operators each one of them has its
 own precedence.
 
 ```ebnf
-infix_def = "infix", int_lit, op, {ident}, ["(", {ident}, ") "], ":", expr
+infix_def = "infix", int_lit, op, {ident}, ["[", {ident}, "] "], ":", expr
 ```
 
 Infix definition starts with the `infix` keyword after which
@@ -105,7 +104,7 @@ Infixes cannot have declarations.
 infix 5 @@ a b: a + b
 infix 10 $ func expr: @func expr
 infix 50 - a b: @sub a b
-infix 5 <==> a b (inline debug) : a * b
+infix 5 <==> a b [inline debug] : a * b
 ```
 
 ### Expressions
@@ -147,10 +146,10 @@ Mostly used for testing, but there is no reason as to why
 I shouldn't let it be here.
 
 ```ftl
-decl nop (lang_nop) : void
+decl nop [lang_nop] : void
 
-decl add int int (lang_add inline) : int
-decl mult int int (lang_mult) : int
+decl add int int [lang_add inline] : int
+decl mult int int [lang_mult] : int
 
 infix 5 @@ a b: a + b
 infix 10 $ func expr: @func expr
@@ -170,7 +169,7 @@ def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
 
 def test: 2 + 2 * 2
 infix 5 <==> a b : 1 `foo 2 `foo 3 `foo 4 + (
-def test3 (test4 test1) : 2+2*2*2*2*2*2
+def test3 [test4 test1] : 2+2*2*2*2*2*2
 
-decl test3 (test1 test2) : int
+decl test3 [test1 test2] : int
 ```

@@ -212,7 +212,13 @@ where
     }
 
     fn parse_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
-        // todo allow function types
+        Comb(self)
+            .r#try(Self::parse_simple_type)
+            .or(Self::parse_func_type)
+            .run()
+    }
+
+    fn parse_simple_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
         let ident = self.parse_ident()?;
         if let Some(lit) = ast::is_lit_type(&ident.symbol) {
             Ok(ast::Type {
@@ -228,8 +234,39 @@ where
         }
     }
 
-    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
+    fn parse_func_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
+        let beg = self.curr_ptr();
         self.parse_token(token::Kind::LeftParenthesis)?;
+        let mut args = Vec::new();
+        while let Ok(t) = self.parse_type() {
+            args.push(Box::new(t));
+        }
+        self.try_parse_token_rec(
+            token::Kind::RightParenthesis,
+            "Unclosed parenthesis for function type".to_owned(),
+            token::Value::String(")".to_owned()),
+        );
+        let ret = Comb(self)
+            .r#try(Self::parse_type)
+            .map(pres_lift_fn(|res| Box::new(res)))
+            .fail_msg("Missing function type return type".to_owned())
+            .run();
+        Ok(ast::Type {
+            id: self.next_node_id(),
+            kind: ast::TypeKind::Function(ast::FuncType {
+                id: self.next_node_id(),
+                ret,
+                args,
+            }),
+            span: Span {
+                beg,
+                end: self.curr_ptr(),
+            },
+        })
+    }
+
+    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
+        self.parse_token(token::Kind::LeftBracket)?;
         let mut attrs = Vec::new();
         while let Ok(attr) = self.parse_ident() {
             attrs.push(ast::FuncAttr {
@@ -238,9 +275,9 @@ where
             });
         }
         self.try_parse_token_rec(
-            token::Kind::RightParenthesis,
+            token::Kind::RightBracket,
             "Unclosed attributes parenthesis".to_owned(),
-            token::Value::String(")".to_owned()),
+            token::Value::String("]".to_owned()),
         );
         Ok(attrs)
     }

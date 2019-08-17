@@ -23,16 +23,16 @@ Documentation progress:
 * `libftl_error`
 * `libftl_cli`
 
-## Parser module
+## ~~Parser module~~
 
-* Shouldn't infix calls be expressions as well? Normal calls are...
+* ~~Shouldn't infix calls be expressions as well? Normal calls are...~~ - REJECTED
 
-### Refactoring
+### ~~Refactoring~~
 
 * ~~Refactor `match ... Err(err) => Err(err)` to `let smth = self.func()?`;~~
 * ~~Refactor long parse matches to `try_parse_*` functions~~
 * ~~Refactor function and infix parsing to smaller functions~~
-* Allow function types in `parse_type`
+* ~~Allow function types in `parse_type`~~
 * ~~change `end of file reached` fatals to `eof_fatal` call~~
 * ~~refactor some matches to `unwrap_or` or `unwrap_or_else`~~
 * ~~make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context~~.
@@ -48,3 +48,8 @@ Documentation progress:
 * Pass which infers function types.
 * Expr type deduction pass that fills types for the epty func decl.
 * Function decls verifier. (if decl is consistant with definition)
+
+### Interpretation or compilation
+
+* Interpreter
+* Compiler

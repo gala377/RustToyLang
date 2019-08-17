@@ -19,6 +19,8 @@ pub enum Kind {
     // Operators
     LeftParenthesis,
     RightParenthesis,
+    LeftBracket,
+    RightBracket,
     Comma,
     Colon,
     At,

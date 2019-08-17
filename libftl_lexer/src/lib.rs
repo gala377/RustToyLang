@@ -68,6 +68,7 @@ where
             Some(ch) if helpers::is_beg_of_ident(ch) => self.collect_identifier(),
             Some(ch) if helpers::is_part_of_op(ch) => self.collect_operator(),
             Some(ch) if ch == '`' => self.collect_infix(),
+            Some(ch) if helpers::is_part_of_parenthesis(ch) => self.collect_parenthesis(),
             Some(_) => self.collect_char(),
             _ => None,
         };
@@ -258,6 +259,22 @@ where
             } else {
                 token::Kind::Operator
             },
+            value: token::Value::String(symbol),
+            span: Span {
+                beg,
+                end: self.curr_ptr(),
+            },
+        })
+    }
+
+    fn collect_parenthesis(&mut self) -> Option<Token<S>> {
+        trace!("collect_parenthesis(): collecting parenthesis");
+        let beg = self.curr_ptr();
+        let mut symbol = String::new();
+        symbol.push(self.curr_char().unwrap());
+        self.next_char();
+        Some(token::Token {
+            kind: helpers::is_parenthesis(&symbol).unwrap(),
             value: token::Value::String(symbol),
             span: Span {
                 beg,
