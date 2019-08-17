@@ -194,6 +194,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub struct MapComb<'a, S, R1, R2, C, F>
 where
     S: 'static + Source,
@@ -214,6 +215,7 @@ where
     C: Combinator<'a, S, R1>,
     F: FnOnce(R1) -> R2,
 {
+    #[allow(dead_code)]
     pub fn chain(prev: C, mapper: F) -> Self {
         Self {
             prev,
@@ -235,5 +237,60 @@ where
         let Self { prev, mapper, .. } = self;
         let (parser, res) = prev.run_chain();
         (parser, mapper(res))
+    }
+}
+
+#[allow(dead_code)]
+pub struct OrAndThenMapComb<'a, S, C, R1, R2, F, M>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R2, S::Pointer>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R1, S::Pointer>,
+    M: FnOnce(R1) -> R2,
+{
+    prev: C,
+    meth: F,
+    mapper: M,
+
+    _r1: PhantomData<R1>,
+    _r2: PhantomData<R2>,
+    _s: PhantomData<&'a S>,
+}
+
+impl<'a, S, C, R1, R2, F, M> OrAndThenMapComb<'a, S, C, R1, R2, F, M>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R2, S::Pointer>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R1, S::Pointer>,
+    M: FnOnce(R1) -> R2,
+{
+    #[allow(dead_code)]
+    pub fn chain(prev: C, meth: F, mapper: M) -> Self {
+        Self {
+            prev,
+            meth,
+            mapper,
+            _r1: PhantomData,
+            _r2: PhantomData,
+            _s: PhantomData,
+        }
+    }
+}
+
+impl<'a, S, C, R1, R2, F, M> Combinator<'a, S, PRes<R2, S::Pointer>>
+    for OrAndThenMapComb<'a, S, C, R1, R2, F, M>
+where
+    S: 'static + Source,
+    C: Combinator<'a, S, PRes<R2, S::Pointer>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R1, S::Pointer>,
+    M: FnOnce(R1) -> R2,
+{
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R2, S::Pointer>) {
+        let Self {
+            prev, meth, mapper, ..
+        } = self;
+        let (parser, res) = prev.run_chain();
+        let res = res.or_else(|_| meth(parser).and_then(move |val| Ok(mapper(val))));
+        (parser, res)
     }
 }

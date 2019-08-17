@@ -6,8 +6,9 @@ use crate::{PRes, Parser};
 pub mod concrete;
 pub mod utility;
 
-use concrete::{MapComb, OrComb, TryComb, TryFailMsgErrorParser, TryFailUnexpectedErrParser};
-use utility::pres_lift_fn;
+use concrete::{
+    MapComb, OrAndThenMapComb, OrComb, TryComb, TryFailMsgErrorParser, TryFailUnexpectedErrParser,
+};
 
 pub trait Combinator<'a, S: 'static + Source, R>: Sized {
     fn run_chain(self) -> (&'a mut Parser<S>, R);
@@ -44,6 +45,15 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
         F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
     {
         OrComb::chain(self, meth)
+    }
+
+    fn or_and_map<F, M, R2>(self, meth: F, mapper: M) -> OrAndThenMapComb<'a, S, Self, R2, R, F, M>
+    where
+        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+        F: FnOnce(&mut Parser<S>) -> PRes<R2, S::Pointer>,
+        M: FnOnce(R2) -> R,
+    {
+        OrAndThenMapComb::chain(self, meth, mapper)
     }
 }
 

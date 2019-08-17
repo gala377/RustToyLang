@@ -3,7 +3,7 @@ use log::debug;
 use ftl_error::LangError;
 use ftl_lexer::{token, Lexer};
 use ftl_session::Session;
-use ftl_source::{Pointer, Source, Span};
+use ftl_source::{Source, Span};
 use ftl_utility::RcRef;
 
 pub mod ast;
@@ -14,7 +14,6 @@ pub mod visitor_mut;
 mod combinators;
 
 use combinators::*;
-use combinators::utility::pres_lift_fn;
 
 type PRes<T, P> = Result<T, ParseErr<P>>;
 
@@ -79,14 +78,6 @@ where
 
     fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
         self.push_ptr();
-        // let kind = Comb(self)
-        //     .r#try(Self::parse_func_decl)
-        //     .map(pres_lift_fn(|decl| ast::TopLevelDeclKind::FunctionDecl(decl)))
-        //     .or(Self::parse_func_def)
-        //     .map(pres_lift_fn(|def| ast::TopLevelDeclKind::FunctionDef(def)))
-        //     .or(Self::parse_infix_decl)
-        //     .map(pres_lift_fn(|def| ast::TopLevelDeclKind::InfixDef(def)))
-        //     .run();
         let kind = if let Ok(func_decl) = self.parse_func_decl() {
             ast::TopLevelDeclKind::FunctionDecl(func_decl)
         } else if let Ok(func_def) = self.parse_func_def() {
