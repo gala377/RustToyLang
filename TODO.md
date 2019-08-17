@@ -2,27 +2,6 @@
 
 Things to be done as well as progress of them.
 
-## Document all public API
-
-Including modules.
-
-Remember that modules are documented with `//!`
-while other items are documented with `///`
-
-What's more remember about sections like `#Panics` `#Errors` and `#Examples`
-and code snippets.
-
-Documentation progress:
-
-* ~~`libftl_utility`~~
-* ~~`libftl_source`~~
-* `libftl_session`
-* `libftl_pass`
-* `libftl_parser`
-* `libftl_lexer`
-* `libftl_error`
-* `libftl_cli`
-
 ## ~~Parser module~~
 
 * ~~Shouldn't infix calls be expressions as well? Normal calls are...~~ - REJECTED
@@ -51,5 +30,28 @@ Documentation progress:
 
 ### Interpretation or compilation
 
+Needs all of the above to be done before starting on this one.
+
 * Interpreter
 * Compiler
+
+## Document all public API
+
+Including modules.
+
+Remember that modules are documented with `//!`
+while other items are documented with `///`
+
+What's more remember about sections like `#Panics` `#Errors` and `#Examples`
+and code snippets.
+
+Documentation progress:
+
+* ~~`libftl_utility`~~
+* ~~`libftl_source`~~
+* `libftl_session`
+* `libftl_pass`
+* `libftl_parser`
+* `libftl_lexer`
+* `libftl_error`
+* `libftl_cli`
