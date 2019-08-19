@@ -58,7 +58,7 @@ where
 impl<'a, S, P> MutPass<'a, P> for ExprPrecReassoc<'a, S>
 where
     P: 'static + Pointer,
-    S: Source<Pointer=P>,
+    S: Source<Pointer = P>,
 {
     fn visit_module(&mut self, node: &mut Module<P>) {
         loop {
@@ -97,7 +97,7 @@ enum IterationRes {
 impl<'a, S, P> ExprReassocIteration<'a, S>
 where
     P: 'static + Pointer,
-    S: Source<Pointer=P>,
+    S: Source<Pointer = P>,
 {
     /// Returns new ExprReassocIteration pass ready to
     /// visit a syntax tree.
@@ -222,7 +222,7 @@ where
 impl<'a, S, P> MutPass<'a, P> for ExprReassocIteration<'a, S>
 where
     P: 'static + Pointer,
-    S: Source<Pointer=P>,
+    S: Source<Pointer = P>,
 {
     fn visit_module(&mut self, node: &'a mut Module<P>) {
         debug!("Running EPR Pass iteration");

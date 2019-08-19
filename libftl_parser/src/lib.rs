@@ -29,7 +29,7 @@ pub struct Parser<S: Source> {
 impl<S, P> Parser<S>
 where
     P: 'static + Pointer,
-    S: 'static + Source<Pointer=P>,
+    S: 'static + Source<Pointer = P>,
 {
     // Public interface
 
@@ -436,17 +436,16 @@ where
     }
 
     fn parse_ident_expr(&mut self) -> PRes<ast::Expr<P>, P> {
-        self.parse_ident()
-            .and_then(|ident: ast::Ident<P>| {
-                Ok(ast::Expr {
-                    id: self.next_node_id(),
-                    span: Span {
-                        beg: ident.span.clone().beg,
-                        end: ident.span.clone().end,
-                    },
-                    kind: ast::ExprKind::Identifier(ident),
-                })
+        self.parse_ident().and_then(|ident: ast::Ident<P>| {
+            Ok(ast::Expr {
+                id: self.next_node_id(),
+                span: Span {
+                    beg: ident.span.clone().beg,
+                    end: ident.span.clone().end,
+                },
+                kind: ast::ExprKind::Identifier(ident),
             })
+        })
     }
 
     fn parse_lit_expr(&mut self) -> PRes<ast::Expr<P>, P> {
@@ -605,10 +604,7 @@ where
         tmp
     }
 
-    fn one_of_tok(
-        &mut self,
-        kinds: Vec<token::Kind>,
-    ) -> PRes<token::Token<P>, P> {
+    fn one_of_tok(&mut self, kinds: Vec<token::Kind>) -> PRes<token::Token<P>, P> {
         for k in kinds {
             if let ret @ Ok(_) = self.parse_token(k) {
                 return ret;
@@ -699,11 +695,7 @@ where
         err
     }
 
-    fn msg_err(
-        msg: String,
-        beg: P,
-        end: P,
-    ) -> Box<dyn LangError<Ptr = P>> {
+    fn msg_err(msg: String, beg: P, end: P) -> Box<dyn LangError<Ptr = P>> {
         let err: Box<errors::ParserError<P>> = Box::new(errors::ParserError {
             msg,
             kind: errors::ParserErrorKind::Msg(Span { beg: beg, end: end }),
