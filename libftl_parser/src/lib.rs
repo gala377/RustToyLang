@@ -10,6 +10,7 @@ pub mod ast;
 pub mod errors;
 pub mod visitor;
 pub mod visitor_mut;
+pub mod utility;
 
 mod combinators;
 
