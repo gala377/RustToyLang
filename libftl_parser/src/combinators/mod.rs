@@ -1,5 +1,5 @@
 use ftl_lexer::token;
-use ftl_source::Source;
+use ftl_source::{Pointer, Source};
 
 use crate::{PRes, Parser};
 
@@ -19,7 +19,11 @@ pub trait Combinator<'a, S: 'static + Source, R>: Sized {
     }
 }
 
-pub trait ResultCombinator<'a, S: 'static + Source, R> {
+pub trait ResultCombinator<'a, S, P, R>
+where
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+{
     fn fail_unex_tok(
         self,
         kind: token::Kind,
@@ -27,40 +31,41 @@ pub trait ResultCombinator<'a, S: 'static + Source, R> {
         msg: String,
     ) -> TryFailUnexpectedErrParser<'a, S, R, Self>
     where
-        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+        Self: Combinator<'a, S, PRes<R, P>> + Sized,
     {
         TryFailUnexpectedErrParser::chain(self, kind, val, msg)
     }
 
     fn fail_msg(self, msg: String) -> TryFailMsgErrorParser<'a, S, R, Self>
     where
-        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
+        Self: Combinator<'a, S, PRes<R, P>> + Sized,
     {
         TryFailMsgErrorParser::chain(self, msg)
     }
 
     fn or<F>(self, meth: F) -> OrComb<'a, S, R, Self, F>
     where
-        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
-        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+        Self: Combinator<'a, S, PRes<R, P>> + Sized,
+        F: FnOnce(&mut Parser<S>) -> PRes<R, P>,
     {
         OrComb::chain(self, meth)
     }
 
     fn or_and_map<F, M, R2>(self, meth: F, mapper: M) -> OrAndThenMapComb<'a, S, Self, R2, R, F, M>
     where
-        Self: Combinator<'a, S, PRes<R, S::Pointer>> + Sized,
-        F: FnOnce(&mut Parser<S>) -> PRes<R2, S::Pointer>,
+        Self: Combinator<'a, S, PRes<R, P>> + Sized,
+        F: FnOnce(&mut Parser<S>) -> PRes<R2, P>,
         M: FnOnce(R2) -> R,
     {
         OrAndThenMapComb::chain(self, meth, mapper)
     }
 }
 
-impl<'a, S, R, C> ResultCombinator<'a, S, R> for C
+impl<'a, S, P, R, C> ResultCombinator<'a, S, P, R> for C
 where
-    S: 'static + Source,
-    C: Combinator<'a, S, PRes<R, S::Pointer>>,
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+    C: Combinator<'a, S, PRes<R, P>>,
 {
 }
 
@@ -83,10 +88,14 @@ where
 
 pub struct Comb<'a, S: 'static + Source>(pub &'a mut Parser<S>);
 
-impl<'a, S: 'static + Source> Comb<'a, S> {
-    pub fn r#try<R, F>(self, meth: F) -> impl Combinator<'a, S, PRes<R, S::Pointer>>
+impl<'a, S, P> Comb<'a, S>
+where
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+{
+    pub fn r#try<R, F>(self, meth: F) -> impl Combinator<'a, S, PRes<R, P>>
     where
-        F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+        F: FnOnce(&mut Parser<S>) -> PRes<R, P>,
     {
         TryComb::chain(self.0, meth)
     }

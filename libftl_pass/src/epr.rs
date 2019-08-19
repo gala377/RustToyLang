@@ -55,11 +55,12 @@ where
         ExprPrecReassoc { sess }
     }
 }
-impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprPrecReassoc<'a, S>
+impl<'a, S, P> MutPass<'a, P> for ExprPrecReassoc<'a, S>
 where
-    S::Pointer: 'static,
+    P: 'static + Pointer,
+    S: Source<Pointer=P>,
 {
-    fn visit_module(&mut self, node: &mut Module<S::Pointer>) {
+    fn visit_module(&mut self, node: &mut Module<P>) {
         loop {
             let mut epr = ExprReassocIteration::new(&mut self.sess);
             epr.visit_module(node);
@@ -93,9 +94,10 @@ enum IterationRes {
     Done,
 }
 
-impl<'a, S: Source> ExprReassocIteration<'a, S>
+impl<'a, S, P> ExprReassocIteration<'a, S>
 where
-    S::Pointer: 'static,
+    P: 'static + Pointer,
+    S: Source<Pointer=P>,
 {
     /// Returns new ExprReassocIteration pass ready to
     /// visit a syntax tree.
@@ -119,7 +121,7 @@ where
 
     /// Returns precedence for the given operator.
     /// Fatals if the precedence could not be found.
-    fn get_op_prec(&mut self, op: &Op<S::Pointer>) -> usize {
+    fn get_op_prec(&mut self, op: &Op<P>) -> usize {
         match self.op.get(&op.symbol) {
             None => self.sess.fatal(Box::new(UnknownPrecedense {
                 e_beg: op.span.beg.clone(),
@@ -132,7 +134,7 @@ where
 
     /// Returns precedence for the given expression.
     /// Fatals if the precedence could not be found.
-    fn get_expr_prec(&mut self, expr: &Expr<S::Pointer>) -> usize {
+    fn get_expr_prec(&mut self, expr: &Expr<P>) -> usize {
         let mut prec = InferPrec::new(&self.op);
         prec.visit_expr(expr);
         match prec.get() {
@@ -151,7 +153,7 @@ where
     /// Checks if the precedenses for the current node
     /// and its lhs are reversed if so swaps them and returns true
     /// otherwise returns false.
-    fn try_prec_switch(&mut self, node: &mut Expr<S::Pointer>) -> bool {
+    fn try_prec_switch(&mut self, node: &mut Expr<P>) -> bool {
         // FIXME: Refactor
         match node.kind {
             ExprKind::InfixOpCall(ref infix_call) => {
@@ -217,11 +219,12 @@ where
     }
 }
 
-impl<'a, S: Source> MutPass<'a, S::Pointer> for ExprReassocIteration<'a, S>
+impl<'a, S, P> MutPass<'a, P> for ExprReassocIteration<'a, S>
 where
-    S::Pointer: 'static,
+    P: 'static + Pointer,
+    S: Source<Pointer=P>,
 {
-    fn visit_module(&mut self, node: &'a mut Module<S::Pointer>) {
+    fn visit_module(&mut self, node: &'a mut Module<P>) {
         debug!("Running EPR Pass iteration");
         let mut prec = InfixPrec::new();
         prec.visit_module(&node);
@@ -230,7 +233,7 @@ where
         noop_module(self, node);
     }
 
-    fn visit_expr(&mut self, node: &'a mut Expr<S::Pointer>) {
+    fn visit_expr(&mut self, node: &'a mut Expr<P>) {
         if self.try_prec_switch(node) {
             self.result = IterationRes::RunAgain;
             // FIXME: does it even matter?

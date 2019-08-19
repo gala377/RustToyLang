@@ -85,7 +85,12 @@ pub trait Pass<'ast, P: Pointer>: Sized {
     fn nop(&mut self) {}
 }
 
-pub fn visit_ast<'ast, S: Source, P: Pass<'ast, S::Pointer>>(p: &mut P, ast: &'ast AST<S>) {
+pub fn visit_ast<'ast, S, P, Ptr>(p: &mut P, ast: &'ast AST<S>)
+where
+    Ptr: 'ast + Pointer,
+    S: Source<Pointer = Ptr>,
+    P: Pass<'ast, Ptr>,
+{
     p.visit_module(&ast.root);
 }
 

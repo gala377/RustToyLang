@@ -12,22 +12,24 @@ where
     S: 'static + Source,
     F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>;
 
-impl<'a, S, R, F> TryComb<'a, S, R, F>
+impl<'a, S, P, R, F> TryComb<'a, S, R, F>
 where
-    S: 'static + Source,
-    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, P>,
 {
     pub fn chain(parser: &'a mut Parser<S>, meth: F) -> Self {
         TryComb(parser, meth)
     }
 }
 
-impl<'a, S, R, F> Combinator<'a, S, PRes<R, S::Pointer>> for TryComb<'a, S, R, F>
+impl<'a, S, P, R, F> Combinator<'a, S, PRes<R, P>> for TryComb<'a, S, R, F>
 where
-    S: 'static + Source,
-    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, P>,
 {
-    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, P>) {
         let Self(parser, func) = self;
         let res = func(parser);
         (parser, res)
@@ -176,13 +178,14 @@ where
     }
 }
 
-impl<'a, S, R, C, F> Combinator<'a, S, PRes<R, S::Pointer>> for OrComb<'a, S, R, C, F>
+impl<'a, S, P, R, C, F> Combinator<'a, S, PRes<R, P>> for OrComb<'a, S, R, C, F>
 where
-    S: 'static + Source,
-    C: Combinator<'a, S, PRes<R, S::Pointer>>,
-    F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>,
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+    C: Combinator<'a, S, PRes<R, P>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R, P>,
 {
-    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, S::Pointer>) {
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R, P>) {
         let Self {
             prev_comb,
             fallback,
@@ -277,15 +280,16 @@ where
     }
 }
 
-impl<'a, S, C, R1, R2, F, M> Combinator<'a, S, PRes<R2, S::Pointer>>
+impl<'a, S, P, C, R1, R2, F, M> Combinator<'a, S, PRes<R2, P>>
     for OrAndThenMapComb<'a, S, C, R1, R2, F, M>
 where
-    S: 'static + Source,
-    C: Combinator<'a, S, PRes<R2, S::Pointer>>,
-    F: FnOnce(&mut Parser<S>) -> PRes<R1, S::Pointer>,
+    P: Pointer,
+    S: 'static + Source<Pointer = P>,
+    C: Combinator<'a, S, PRes<R2, P>>,
+    F: FnOnce(&mut Parser<S>) -> PRes<R1, P>,
     M: FnOnce(R1) -> R2,
 {
-    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R2, S::Pointer>) {
+    fn run_chain(self) -> (&'a mut Parser<S>, PRes<R2, P>) {
         let Self {
             prev, meth, mapper, ..
         } = self;

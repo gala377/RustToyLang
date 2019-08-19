@@ -4,9 +4,8 @@
 use std::io;
 use std::io::Write;
 
-use ftl_error::Handler;
-use ftl_error::LangError;
-use ftl_source::Source;
+use ftl_error::{Handler, LangError};
+use ftl_source::{Pointer, Source};
 use ftl_utility::RcRef;
 
 pub struct Session<S: Source> {
@@ -14,7 +13,11 @@ pub struct Session<S: Source> {
     pub src: RcRef<S>,
 }
 
-impl<S: Source> Session<S> {
+impl<S, P> Session<S>
+where
+    P: Pointer,
+    S: Source<Pointer = P>,
+{
     pub fn new(src: S) -> Self {
         let src = RcRef::new(src);
         Session {
@@ -23,11 +26,11 @@ impl<S: Source> Session<S> {
         }
     }
 
-    pub fn err(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) {
+    pub fn err(&mut self, err: Box<dyn LangError<Ptr = P>>) {
         self.handler.err(err);
     }
 
-    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) -> ! {
+    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr = P>>) -> ! {
         self.handler.fatal(err);
     }
 

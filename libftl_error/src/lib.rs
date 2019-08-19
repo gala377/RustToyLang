@@ -18,7 +18,11 @@ pub struct Handler<S: Source> {
     src: RcRef<S>,
 }
 
-impl<S: Source> Handler<S> {
+impl<S, P> Handler<S>
+where
+    P: Pointer,
+    S: Source<Pointer = P>,
+{
     pub fn new(src: RcRef<S>) -> Self {
         Self {
             errs: Vec::new(),
@@ -26,11 +30,11 @@ impl<S: Source> Handler<S> {
         }
     }
 
-    pub fn err(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) {
+    pub fn err(&mut self, err: Box<dyn LangError<Ptr = P>>) {
         self.errs.push(err);
     }
 
-    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) -> ! {
+    pub fn fatal(&mut self, err: Box<dyn LangError<Ptr = P>>) -> ! {
         self.err(err);
         match self.error_msg() {
             Some(msg) => println!("{}", msg),
@@ -51,7 +55,7 @@ impl<S: Source> Handler<S> {
         Some(mess)
     }
 
-    fn err_to_str(&self, err: &dyn LangError<Ptr = S::Pointer>) -> String {
+    fn err_to_str(&self, err: &dyn LangError<Ptr = P>) -> String {
         String::from(format!(
             "[{}:{}] {}\n\n{}\n\n",
             err.begin().line(),

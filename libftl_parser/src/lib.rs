@@ -3,7 +3,7 @@ use log::debug;
 use ftl_error::LangError;
 use ftl_lexer::{token, Lexer};
 use ftl_session::Session;
-use ftl_source::{Source, Span};
+use ftl_source::{Pointer, Source, Span};
 use ftl_utility::RcRef;
 
 pub mod ast;
@@ -26,9 +26,10 @@ pub struct Parser<S: Source> {
     saved_ptrs: Vec<S::Pointer>,
 }
 
-impl<S> Parser<S>
+impl<S, P> Parser<S>
 where
-    S: 'static + Source,
+    P: 'static + Pointer,
+    S: 'static + Source<Pointer=P>,
 {
     // Public interface
 
@@ -50,7 +51,7 @@ where
 
     // Parsing methods
 
-    fn parse_module(&mut self) -> PRes<ast::Module<S::Pointer>, S::Pointer> {
+    fn parse_module(&mut self) -> PRes<ast::Module<P>, P> {
         let mut module = ast::Module {
             id: self.next_node_id(),
             decl: Vec::new(),
@@ -68,7 +69,7 @@ where
         Ok(module)
     }
 
-    fn parse_eof(&mut self) -> PRes<(), S::Pointer> {
+    fn parse_eof(&mut self) -> PRes<(), P> {
         match self.lexer.next() {
             None => Ok(()),
             Some(tok) => Err(ParseErr::NotThisItem(tok)),
@@ -77,7 +78,7 @@ where
 
     // Top level decl
 
-    fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<S::Pointer>, S::Pointer> {
+    fn parse_top_level_decl(&mut self) -> PRes<ast::TopLevelDecl<P>, P> {
         self.push_ptr();
         let kind = if let Ok(func_decl) = self.parse_func_decl() {
             ast::TopLevelDeclKind::FunctionDecl(func_decl)
@@ -103,7 +104,7 @@ where
 
     // Function
 
-    fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<S::Pointer>, S::Pointer> {
+    fn parse_infix_decl(&mut self) -> PRes<ast::InfixDef<P>, P> {
         self.parse_token(token::Kind::InfixDef)?;
         let precedence = Comb(self)
             .r#try(Self::parse_int_lit)
@@ -147,7 +148,7 @@ where
         })
     }
 
-    fn parse_infix_decl_args(&mut self) -> (ast::FuncArg<S::Pointer>, ast::FuncArg<S::Pointer>) {
+    fn parse_infix_decl_args(&mut self) -> (ast::FuncArg<P>, ast::FuncArg<P>) {
         let arg_1 = Comb(self)
             .r#try(Self::parse_func_arg)
             .fail_msg("Infix needs 2 arguments".to_owned())
@@ -159,7 +160,7 @@ where
         (arg_1, arg_2)
     }
 
-    fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<S::Pointer>, S::Pointer> {
+    fn parse_func_decl(&mut self) -> PRes<ast::FuncDecl<P>, P> {
         self.parse_token(token::Kind::FuncDecl)?;
         let ident =
             self.try_parse_ident_fail("A function needs an identifier as its name.".to_owned());
@@ -194,7 +195,7 @@ where
         })
     }
 
-    fn parse_func_args_types(&mut self) -> PRes<Vec<ast::Type<S::Pointer>>, S::Pointer> {
+    fn parse_func_args_types(&mut self) -> PRes<Vec<ast::Type<P>>, P> {
         let mut args = Vec::new();
         let beg = self.peek_ptr().clone();
         while let Ok(t) = self.parse_type() {
@@ -211,14 +212,14 @@ where
         return Ok(args);
     }
 
-    fn parse_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
+    fn parse_type(&mut self) -> PRes<ast::Type<P>, P> {
         Comb(self)
             .r#try(Self::parse_simple_type)
             .or(Self::parse_func_type)
             .run()
     }
 
-    fn parse_simple_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
+    fn parse_simple_type(&mut self) -> PRes<ast::Type<P>, P> {
         let ident = self.parse_ident()?;
         if let Some(lit) = ast::is_lit_type(&ident.symbol) {
             Ok(ast::Type {
@@ -234,7 +235,7 @@ where
         }
     }
 
-    fn parse_func_type(&mut self) -> PRes<ast::Type<S::Pointer>, S::Pointer> {
+    fn parse_func_type(&mut self) -> PRes<ast::Type<P>, P> {
         let beg = self.curr_ptr();
         self.parse_token(token::Kind::LeftParenthesis)?;
         let mut args = Vec::new();
@@ -265,7 +266,7 @@ where
         })
     }
 
-    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<S::Pointer>>, S::Pointer> {
+    fn parse_func_attrs(&mut self) -> PRes<Vec<ast::FuncAttr<P>>, P> {
         self.parse_token(token::Kind::LeftBracket)?;
         let mut attrs = Vec::new();
         while let Ok(attr) = self.parse_ident() {
@@ -282,7 +283,7 @@ where
         Ok(attrs)
     }
 
-    fn parse_func_def(&mut self) -> PRes<ast::FuncDef<S::Pointer>, S::Pointer> {
+    fn parse_func_def(&mut self) -> PRes<ast::FuncDef<P>, P> {
         self.parse_token(token::Kind::FuncDef)?;
         let ident =
             self.try_parse_ident_fail("A function needs an identifier as its name.".to_owned());
@@ -310,7 +311,7 @@ where
         })
     }
 
-    fn parse_func_args(&mut self) -> Vec<ast::FuncArg<S::Pointer>> {
+    fn parse_func_args(&mut self) -> Vec<ast::FuncArg<P>> {
         let mut args = Vec::new();
         while let Ok(arg) = self.parse_func_arg() {
             args.push(arg);
@@ -318,7 +319,7 @@ where
         args
     }
 
-    fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<S::Pointer>, S::Pointer> {
+    fn parse_func_arg(&mut self) -> PRes<ast::FuncArg<P>, P> {
         let ident = self.parse_ident()?;
         Ok(ast::FuncArg {
             id: self.next_node_id(),
@@ -333,11 +334,11 @@ where
 
     // Expr
 
-    fn parse_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_expr(&mut self) -> PRes<ast::Expr<P>, P> {
         self.parse_infix_expr()
     }
 
-    fn parse_infix_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_infix_expr(&mut self) -> PRes<ast::Expr<P>, P> {
         let mut lhs = self.parse_func_call()?;
         while let Ok(op) = self.one_of_tok(vec![token::Kind::InfixIdent, token::Kind::Operator]) {
             let beg = self.curr_ptr();
@@ -390,7 +391,7 @@ where
         Ok(lhs)
     }
 
-    fn parse_func_call(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_func_call(&mut self) -> PRes<ast::Expr<P>, P> {
         let beg = self.curr_ptr();
         if let Err(_) = self.parse_token(token::Kind::At) {
             return self.parse_primary_expr();
@@ -419,7 +420,7 @@ where
 
     // Primary expr
 
-    fn parse_primary_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_primary_expr(&mut self) -> PRes<ast::Expr<P>, P> {
         if let expr @ Ok(_) = Comb(self)
             .r#try(Self::parse_ident_expr)
             .or(Self::parse_lit_expr)
@@ -434,9 +435,9 @@ where
         }
     }
 
-    fn parse_ident_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_ident_expr(&mut self) -> PRes<ast::Expr<P>, P> {
         self.parse_ident()
-            .and_then(|ident: ast::Ident<S::Pointer>| {
+            .and_then(|ident: ast::Ident<P>| {
                 Ok(ast::Expr {
                     id: self.next_node_id(),
                     span: Span {
@@ -448,8 +449,8 @@ where
             })
     }
 
-    fn parse_lit_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
-        self.parse_lit().and_then(|lit: ast::Lit<S::Pointer>| {
+    fn parse_lit_expr(&mut self) -> PRes<ast::Expr<P>, P> {
+        self.parse_lit().and_then(|lit: ast::Lit<P>| {
             Ok(ast::Expr {
                 id: self.next_node_id(),
                 span: Span {
@@ -461,7 +462,7 @@ where
         })
     }
 
-    fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<S::Pointer>, S::Pointer> {
+    fn parse_parenthesis_expr(&mut self) -> PRes<ast::Expr<P>, P> {
         let beg = self.curr_ptr();
         self.parse_token(token::Kind::LeftParenthesis)?;
         let expr = Comb(self)
@@ -486,7 +487,7 @@ where
         })
     }
 
-    fn parse_ident(&mut self) -> PRes<ast::Ident<S::Pointer>, S::Pointer> {
+    fn parse_ident(&mut self) -> PRes<ast::Ident<P>, P> {
         let tok = self.parse_token(token::Kind::Identifier)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Ident {
@@ -499,7 +500,7 @@ where
         }
     }
 
-    fn parse_op(&mut self) -> PRes<ast::Op<S::Pointer>, S::Pointer> {
+    fn parse_op(&mut self) -> PRes<ast::Op<P>, P> {
         let tok = self.parse_token(token::Kind::Operator)?;
         if let token::Value::String(s) = tok.value {
             Ok(ast::Op {
@@ -514,11 +515,11 @@ where
 
     // Literals
 
-    fn parse_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
+    fn parse_lit(&mut self) -> PRes<ast::Lit<P>, P> {
         self.parse_int_lit()
     }
 
-    fn parse_int_lit(&mut self) -> PRes<ast::Lit<S::Pointer>, S::Pointer> {
+    fn parse_int_lit(&mut self) -> PRes<ast::Lit<P>, P> {
         let beg = self.curr_ptr();
         let tok = self.parse_token(token::Kind::IntLiteral)?;
         if let token::Value::Integer(v) = tok.value {
@@ -537,7 +538,7 @@ where
 
     // Parse helpers
 
-    fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+    fn parse_token(&mut self, kind: token::Kind) -> PRes<token::Token<P>, P> {
         match self.lexer.curr() {
             Some(tok) => {
                 if tok.kind == kind {
@@ -556,7 +557,7 @@ where
         kind: token::Kind,
         error_msg: String,
         val: token::Value,
-    ) -> token::Token<S::Pointer> {
+    ) -> token::Token<P> {
         let beg = self.peek_ptr().clone();
         self.parse_token(kind.clone())
             .unwrap_or_else(|err| match err {
@@ -583,7 +584,7 @@ where
         kind: token::Kind,
         error_msg: String,
         val: token::Value,
-    ) -> token::Token<S::Pointer> {
+    ) -> token::Token<P> {
         let kind_ = kind.clone();
         Comb(self)
             .r#try(move |self_: &mut Self| self_.parse_token(kind_.clone()))
@@ -591,7 +592,7 @@ where
             .run()
     }
 
-    fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<S::Pointer> {
+    fn try_parse_ident_fail(&mut self, error_msg: String) -> ast::Ident<P> {
         Comb(self)
             .r#try(Self::parse_ident)
             .fail_unex_tok(token::Kind::Identifier, token::Value::None, error_msg)
@@ -607,7 +608,7 @@ where
     fn one_of_tok(
         &mut self,
         kinds: Vec<token::Kind>,
-    ) -> PRes<token::Token<S::Pointer>, S::Pointer> {
+    ) -> PRes<token::Token<P>, P> {
         for k in kinds {
             if let ret @ Ok(_) = self.parse_token(k) {
                 return ret;
@@ -626,14 +627,14 @@ where
         self.saved_ptrs.push(self.curr_ptr())
     }
 
-    fn pop_ptr(&mut self) -> S::Pointer {
+    fn pop_ptr(&mut self) -> P {
         debug!("Poping value from the ptr stack");
         self.saved_ptrs
             .pop()
             .expect("Poping from empty pointer stack")
     }
 
-    fn peek_ptr(&mut self) -> &S::Pointer {
+    fn peek_ptr(&mut self) -> &P {
         debug!("Peeping value on the ptr stack");
         self.saved_ptrs
             .last()
@@ -642,19 +643,19 @@ where
 
     // Delegations
 
-    fn curr_ptr(&self) -> S::Pointer {
+    fn curr_ptr(&self) -> P {
         self.lexer.curr_ptr()
     }
 
-    fn err(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) {
+    fn err(&mut self, err: Box<dyn LangError<Ptr = P>>) {
         self.sess.borrow_mut().err(err)
     }
 
-    fn fatal(&mut self, err: Box<dyn LangError<Ptr = S::Pointer>>) -> ! {
+    fn fatal(&mut self, err: Box<dyn LangError<Ptr = P>>) -> ! {
         self.sess.borrow_mut().fatal(err)
     }
 
-    fn eof_reached_fatal(&mut self, beg: S::Pointer, end: S::Pointer) -> ! {
+    fn eof_reached_fatal(&mut self, beg: P, end: P) -> ! {
         self.fatal(Self::msg_err("End of file reached".to_owned(), beg, end))
     }
 
@@ -664,16 +665,16 @@ where
     fn token_expected_err(
         kind: token::Kind,
         value: token::Value,
-        beg: S::Pointer,
-        end: S::Pointer,
+        beg: P,
+        end: P,
         msg: String,
-    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
+    ) -> Box<dyn LangError<Ptr = P>> {
         let tok = token::Token {
             kind,
             value,
             span: Span { beg, end },
         };
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+        let err: Box<errors::ParserError<P>> = Box::new(errors::ParserError {
             msg: format!("Expected token {}. {}", tok, msg),
             kind: errors::ParserErrorKind::TokenExpected(tok),
         });
@@ -683,15 +684,15 @@ where
     fn unexpected_token_err(
         kind: token::Kind,
         value: token::Value,
-        actual: token::Token<S::Pointer>,
+        actual: token::Token<P>,
         msg: String,
-    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
+    ) -> Box<dyn LangError<Ptr = P>> {
         let expected = token::Token {
             kind,
             value,
             span: actual.span.clone(),
         };
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+        let err: Box<errors::ParserError<P>> = Box::new(errors::ParserError {
             msg: format!("Expected token {}, got {}. {}", expected, actual, msg),
             kind: errors::ParserErrorKind::UnexpectedToken { expected, actual },
         });
@@ -700,10 +701,10 @@ where
 
     fn msg_err(
         msg: String,
-        beg: S::Pointer,
-        end: S::Pointer,
-    ) -> Box<dyn LangError<Ptr = S::Pointer>> {
-        let err: Box<errors::ParserError<S::Pointer>> = Box::new(errors::ParserError {
+        beg: P,
+        end: P,
+    ) -> Box<dyn LangError<Ptr = P>> {
+        let err: Box<errors::ParserError<P>> = Box::new(errors::ParserError {
             msg,
             kind: errors::ParserErrorKind::Msg(Span { beg: beg, end: end }),
         });
