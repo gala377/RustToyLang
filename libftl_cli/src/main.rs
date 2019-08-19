@@ -12,6 +12,7 @@ use ftl_utility::RcRef;
 use ftl_parser::visitor_mut::visit_ast_mut;
 use ftl_pass::dm::DeclarationMerge;
 use ftl_pass::epr::ExprPrecReassoc;
+use ftl_pass::ftd::FuncTypeDeduction;
 // test
 
 mod helpers;
@@ -104,6 +105,16 @@ fn main() -> io::Result<()> {
 
     let mut ppp = phase::ppp::PrettyPrint {};
     ppp.run_wrapped(&mut ast);
+
+    print_line();
+    print_red("Running FTD pass...");
+    let mut ftd = FuncTypeDeduction::new();
+    visit_ast_mut(&mut ftd, &mut ast);
+    print_green("Done...");
+
+    let mut ppp = phase::ppp::PrettyPrint {};
+    ppp.run_wrapped(&mut ast);
+
 
     print_line();
 

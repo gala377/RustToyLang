@@ -179,7 +179,7 @@ impl<P: Pointer> Pass<'_, P> for Printer {
         self.start_line();
         self.indent += 1;
         self.visit_expr(&node.lhs);
-        self.start_line_at(self.indent - 1);
+        self.stop_line_at(self.indent - 1);
         self.visit_expr(&node.rhs);
         self.indent -= 1;
     }
@@ -210,6 +210,13 @@ impl<P: Pointer> Pass<'_, P> for Printer {
 
     fn visit_parenthesed(&mut self, node: &Paren<P>) {
         self.add("Parenthesed");
+        self.indent += 1;
+        self.visit_expr(&node.expr);
+        self.indent -= 1;
+    }
+
+    fn visit_typed(&mut self, node: &Typed<P>) {
+        self.add(&format!("Typed ({})", Self::strfy_type(&node.ty)));
         self.indent += 1;
         self.visit_expr(&node.expr);
         self.indent -= 1;
