@@ -59,6 +59,10 @@ pub trait MutPass<'ast, P: Pointer>: Sized {
         noop_paren(self, node);
     }
 
+    fn visit_typed(&mut self, node: &'ast mut Typed<P>) {
+        noop_typed(self, node);
+    }
+
     fn visit_lit(&mut self, node: &'ast mut Lit<P>) {
         noop_lit(self, node);
     }
@@ -168,22 +172,20 @@ pub fn noop_infix_def<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(
 
 pub fn noop_expr<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(v: &mut P, node: &'ast mut Expr<Ptr>) {
     match node.kind {
-        ExprKind::FunctionCall(ref mut call) => {
-            v.visit_func_call(call);
-        }
-        ExprKind::Literal(ref mut lit) => {
-            v.visit_lit(lit);
-        }
-        ExprKind::Identifier(ref mut ident) => {
-            v.visit_ident(ident);
-        }
-        ExprKind::InfixOpCall(ref mut infix_op_call) => v.visit_infix_op_call(infix_op_call),
-        ExprKind::InfixFuncCall(ref mut infix_call) => {
-            v.visit_infix_func_call(infix_call);
-        }
-        ExprKind::Parenthesed(ref mut paren) => {
-            v.visit_parenthesed(paren);
-        }
+        ExprKind::FunctionCall(ref mut call) =>
+            v.visit_func_call(call),
+        ExprKind::Literal(ref mut lit) =>
+            v.visit_lit(lit),
+        ExprKind::Identifier(ref mut ident) =>
+            v.visit_ident(ident),
+        ExprKind::InfixOpCall(ref mut infix_op_call) =>
+            v.visit_infix_op_call(infix_op_call),
+        ExprKind::InfixFuncCall(ref mut infix_call) =>
+            v.visit_infix_func_call(infix_call),
+        ExprKind::Parenthesed(ref mut paren) =>
+            v.visit_parenthesed(paren),
+        ExprKind::Typed(ref mut typed) =>
+            v.visit_typed(typed),
     }
 }
 
@@ -219,6 +221,13 @@ pub fn noop_paren<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(
     v: &mut P,
     node: &'ast mut Paren<Ptr>,
 ) {
+    v.visit_expr(&mut node.expr);
+}
+
+pub fn noop_typed<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(
+    v: &mut P,
+    node: &'ast mut Typed<Ptr>) {
+    v.visit_type(&mut node.ty);
     v.visit_expr(&mut node.expr);
 }
 

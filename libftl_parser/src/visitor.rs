@@ -54,6 +54,10 @@ pub trait Pass<'ast, P: Pointer>: Sized {
         walk_paren_expr(self, node);
     }
 
+    fn visit_typed(&mut self, node: &'ast Typed<P>) {
+        walk_typed_expr(self, node);
+    }
+
     fn visit_lit(&mut self, node: &'ast Lit<P>) {
         walk_lit(self, node);
     }
@@ -180,10 +184,18 @@ pub fn walk_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast 
         ExprKind::Parenthesed(ref paren) => {
             v.visit_parenthesed(paren);
         }
+        ExprKind::Typed(ref typed) => {
+            v.visit_typed(typed);
+        }
     }
 }
 
 pub fn walk_paren_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Paren<Ptr>) {
+    v.visit_expr(&node.expr);
+}
+
+pub fn walk_typed_expr<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'ast Typed<Ptr>) {
+    v.visit_type(&node.ty);
     v.visit_expr(&node.expr);
 }
 
@@ -240,6 +252,7 @@ pub fn walk_func_type<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(
 }
 
 // Apparently this doesn't work as I tough it would
+// FIXME: ?
 // impl<P: Pointer, V: Pass<P>> MutPass<P> for V {
 
 //     fn visit_module(&mut self, node: &mut Module<P>) {

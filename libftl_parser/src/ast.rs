@@ -84,6 +84,7 @@ pub enum ExprKind<T: Pointer> {
     // know about precedence but the
     // later passes need to know about them.
     Parenthesed(Paren<T>),
+    Typed(Typed<T>),
 }
 
 #[derive(Clone)]
@@ -96,6 +97,13 @@ pub struct FuncCall<T: Pointer> {
 #[derive(Clone)]
 pub struct Paren<T: Pointer> {
     pub id: NodeId,
+    pub expr: Box<Expr<T>>,
+}
+
+#[derive(Clone)]
+pub struct Typed<T: Pointer>{
+    pub id: NodeId,
+    pub ty: Type<T>,
     pub expr: Box<Expr<T>>,
 }
 
