@@ -9,6 +9,7 @@ use std::{cell::RefCell, clone::Clone, ops::Deref, rc::Rc};
 
 #[macro_use]
 pub mod macros;
+pub mod utf8;
 
 /// Newtype for the `Rc<RefCell<T>>`.
 ///
