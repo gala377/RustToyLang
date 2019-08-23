@@ -19,12 +19,16 @@ Things to be done as well as progress of them.
 
 ## ~~Combinators~~
 
+## Source module
+
+* Implement file source with the utility `utf8::Reader` struct.
+
 ## Pass module
 
 ### New passes
 
 * Pass to transform infix calls to normal calls.
-* Pass which infers function types.
+* _Pass which infers function types._ - WIP (ftd - branch).
 * Expr type deduction pass that fills types for the epty func decl.
 * Function decls verifier. (if decl is consistant with definition)
 
