@@ -68,6 +68,6 @@ mod tests {
     #[should_panic]
     fn panics_when_failure_is_expected_on_multiple_patterns() {
         let opt: Option<u8> = Some(0);
-        assert_match!(opt, None, Some(1), Some(3...5));
+        assert_match!(opt, None, Some(1), Some(3..=5));
     }
 }
