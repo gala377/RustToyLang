@@ -86,6 +86,17 @@ pub fn char_len(bytes: &[u8]) -> io::Result<usize> {
     ))
 }
 
+pub fn code_point(bytes: &[u8]) -> u32 {
+    if bytes.len() == 1 {
+        return bytes[0] as u32;
+    }
+    let mut cp = 0;
+    for (i, byte) in bytes.iter().rev().enumerate() {
+        cp = add_next_byte(cp, *byte, i as u32, bytes.len() as u32);
+    }
+    return cp;
+}
+
 fn verify_intermediate_bytes(bytes: &[u8]) -> io::Result<()> {
     for byte in bytes {
         if byte & 0b1100_0000 != 0b1000_0000 {
@@ -96,17 +107,6 @@ fn verify_intermediate_bytes(bytes: &[u8]) -> io::Result<()> {
         }
     }
     Ok(())
-}
-
-pub fn code_point(bytes: &[u8]) -> u32 {
-    if bytes.len() == 1 {
-        return bytes[0] as u32;
-    }
-    let mut cp = 0;
-    for (i, byte) in bytes.iter().rev().enumerate() {
-        cp = add_next_byte(cp, *byte, i as u32, bytes.len() as u32);
-    }
-    return cp;
 }
 
 fn add_next_byte(cp: u32, byte: u8, num: u32, len: u32) -> u32 {
