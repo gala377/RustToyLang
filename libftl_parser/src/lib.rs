@@ -8,9 +8,9 @@ use ftl_utility::RcRef;
 
 pub mod ast;
 pub mod errors;
+pub mod utility;
 pub mod visitor;
 pub mod visitor_mut;
-pub mod utility;
 
 mod combinators;
 

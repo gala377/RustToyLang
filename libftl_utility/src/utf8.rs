@@ -1,26 +1,22 @@
 use std::io;
-use std::io::{
-    Read,
-    BufReader,
-    BufRead,
-    Seek,
-    SeekFrom,
-};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
 use std::convert::From;
 
-pub struct Reader<R: Read> { 
+pub struct Reader<R: Read> {
     buff: BufReader<R>,
 }
 
 impl<R: Read> Reader<R> {
     pub fn new(inner: R) -> Self {
-        Self { buff: BufReader::new(inner) }
+        Self {
+            buff: BufReader::new(inner),
+        }
     }
 
     pub fn read_utf8_char(&mut self) -> io::Result<char> {
         // We won't expect characters longer than 4 bytes
-        let mut buff = [0, 0, 0, 0];
+        let mut buff = [0; 4];
         self.read_exact(&mut buff[..1])?;
         let bytes_to_read = Self::bytes_number(buff[0])?;
         if bytes_to_read == 1 {
@@ -29,15 +25,13 @@ impl<R: Read> Reader<R> {
         }
         self.read_exact(&mut buff[1..bytes_to_read])?;
         Self::verify_bytes(&buff[1..bytes_to_read])?;
-        let codepoint = u32::from_le_bytes([buff[0], buff[1], buff[2], buff[3]]);
-        Ok(
-            std::char::from_u32(codepoint).expect(
-                &format!(
-                    "Verified utf-8 character could not be 
+        let codepoint = u32::from_ne_bytes(buff);
+        Ok(std::char::from_u32(codepoint).expect(&format!(
+            "Verified utf-8 character could not be 
                     parsed by the std library function: {}, codepoint {}",
-                    Self::bytes_repr(&buff[..]),
-                    codepoint))
-        )
+            Self::bytes_repr(&buff[..]),
+            codepoint
+        )))
     }
 
     fn bytes_number(byte: u8) -> io::Result<usize> {
@@ -55,8 +49,8 @@ impl<R: Read> Reader<R> {
         }
         Err(io::Error::new(
             io::ErrorKind::Other,
-            format!("Not an utf-8 character: {:X}", byte))
-        )
+            format!("Not an utf-8 character: {:X}", byte),
+        ))
     }
 
     fn verify_bytes(bytes: &[u8]) -> io::Result<()> {
@@ -64,10 +58,8 @@ impl<R: Read> Reader<R> {
             if byte & 0b1100_0000 != 0b1000_0000 {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
-                    format!(
-                        "Not an utf-8 character: {}",
-                        Self::bytes_repr(bytes)))
-                )
+                    format!("Not an utf-8 character: {}", Self::bytes_repr(bytes)),
+                ));
             }
         }
         Ok(())
@@ -107,7 +99,7 @@ impl<R: Read + Seek> Seek for Reader<R> {
 
 #[cfg(test)]
 mod tests {
-    
+
     use super::*;
 
     #[test]
@@ -147,12 +139,10 @@ mod tests {
     fn reading_past_returns_unexpected_eof() {
         let mut reader = Reader::new("".as_bytes());
         assert!(match reader.read_utf8_char() {
-            Err(err) => {
-                match err.kind() {
-                    io::ErrorKind::UnexpectedEof => true,
-                    _ => false,
-                }
-            }
+            Err(err) => match err.kind() {
+                io::ErrorKind::UnexpectedEof => true,
+                _ => false,
+            },
             _ => false,
         });
     }
