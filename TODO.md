@@ -51,8 +51,10 @@ and code snippets.
 
 Documentation progress:
 
-* ~~`libftl_utility`~~
-* ~~`libftl_source`~~
+* `libftl_utility`
+  * `utf8` module
+* `libftl_source`
+  * `file` module
 * `libftl_session`
 * `libftl_pass`
 * `libftl_parser`

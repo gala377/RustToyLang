@@ -11,3 +11,5 @@ path = "src/lib.rs"
 
 [dependencies]
 log = "0.4"
+tempfile = "3.1.0"
+ftl_utility = { path = "../libftl_utility" }

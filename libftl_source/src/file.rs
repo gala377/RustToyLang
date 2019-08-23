@@ -2,27 +2,25 @@
 //! the file source unit and
 //! corresponding source pointer.
 
+use std::cell::RefCell;
+use std::convert::From;
 use std::fs;
 use std::io;
-use std::io::Read;
+use std::io::{Seek, SeekFrom};
 
 use crate::Source;
+use ftl_utility::utf8;
 
-/// TODO - this is just a basic implementation
-/// reading all of the files content to the string.
-///
-/// It should be changed as its not really wise
-/// to hold a files content in the string.
-///
-/// Because files content is read to the basic string
-/// struct doesn't implement it's own pointer struct
-/// and instead uses [`Strings`](../string/struct.String.html) source
-/// pointer struct ([`Pointer`](../string/struct.Pointer.html)).
 pub struct File {
-    _path: String,
-    _file: fs::File,
+    reader: RefCell<utf8::Reader<fs::File>>,
 
-    mock: crate::string::String,
+    current: Option<char>,
+
+    curr_line: usize,
+    curr_pos: usize,
+
+    index: u64,
+    switch_line: bool,
 }
 
 impl File {
@@ -35,34 +33,136 @@ impl File {
     /// a file with
     /// [`std::fs::File::open`](https://doc.rust-lang.org/std/fs/struct.File.html#method.open).
     pub fn new(path: &str) -> io::Result<Self> {
-        let p = String::from(path);
-        let mut f = fs::File::open(path)?;
-        let mut s = String::new();
-        f.read_to_string(&mut s)?;
-        Ok(Self {
-            _path: p,
-            _file: f,
-            mock: crate::string::String::from(&s[..]),
-        })
+        let f = fs::File::open(path)?;
+        Ok(Self::_new(f))
+    }
+
+    fn _new(f: fs::File) -> Self {
+        let mut s = Self {
+            reader: RefCell::new(utf8::Reader::new(f)),
+            curr_line: 1,
+            curr_pos: 1,
+            index: 0,
+            switch_line: false,
+            current: None,
+        };
+        s.current = s.next_char();
+        return s;
+    }
+
+    fn try_next_char(&mut self) -> Option<char> {
+        match self.reader.borrow_mut().read_utf8_char() {
+            Ok(ch) => Some(ch),
+            Err(err) => {
+                if let io::ErrorKind::UnexpectedEof = err.kind() {
+                    None
+                } else {
+                    panic!("Not a valid utf-8 character!");
+                }
+            }
+        }
+    }
+
+    fn curr_seek_pos(&self) -> u64 {
+        self.reader.borrow_mut().seek(SeekFrom::Current(0)).unwrap()
+    }
+}
+
+impl From<fs::File> for File {
+    fn from(f: fs::File) -> Self {
+        Self::_new(f)
     }
 }
 
 impl Source for File {
-    type Pointer = crate::string::Pointer;
+    type Pointer = Pointer;
 
     fn curr_char(&self) -> Option<char> {
-        self.mock.curr_char()
+        self.current
     }
 
     fn next_char(&mut self) -> Option<char> {
-        self.mock.next_char()
+        self.current = self.try_next_char();
+        if let None = self.current {
+            return self.current;
+        }
+        self.index += self.current.unwrap().len_utf8() as u64;
+        if self.switch_line {
+            self.switch_line = false;
+            self.curr_line += 1;
+            self.curr_pos = 0;
+        }
+        if let Some(ch) = self.current {
+            if ch == '\n' {
+                self.switch_line = true;
+            }
+            self.curr_pos += 1;
+        }
+        self.current
     }
 
     fn curr_ptr(&self) -> Self::Pointer {
-        self.mock.curr_ptr()
+        Self::Pointer {
+            index: self.index,
+            curr_line: self.curr_line,
+            curr_pos: self.curr_pos,
+        }
     }
 
     fn source_between(&self, begin: &Self::Pointer, end: &Self::Pointer) -> std::string::String {
-        self.mock.source_between(begin, end)
+        let mut s = String::new();
+        let saved_pos = self.curr_seek_pos();
+        self.reader
+            .borrow_mut()
+            .seek(SeekFrom::Start(begin.index))
+            .unwrap();
+        while self.curr_seek_pos() < end.index {
+            s.push(match self.reader.borrow_mut().read_utf8_char() {
+                Ok(ch) => ch,
+                _ => unreachable!(),
+            });
+        }
+        self.reader
+            .borrow_mut()
+            .seek(SeekFrom::Start(saved_pos))
+            .unwrap();
+        return s;
+    }
+}
+
+#[derive(Clone)]
+pub struct Pointer {
+    index: u64,
+    curr_line: usize,
+    curr_pos: usize,
+}
+
+impl crate::Pointer for Pointer {
+    fn line(&self) -> usize {
+        self.curr_line
+    }
+
+    fn position(&self) -> usize {
+        self.curr_pos
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+    use std::io::{Seek, SeekFrom};
+
+    use tempfile::tempfile;
+
+    use crate::{file::*, tests::*};
+
+    #[test]
+    fn source_tests_for_file_source() {
+        source_tests(&|raw| {
+            let mut temp = tempfile().unwrap();
+            write!(&mut temp, "{}", raw).unwrap();
+            temp.seek(SeekFrom::Start(0)).unwrap();
+            File::from(temp)
+        });
     }
 }
