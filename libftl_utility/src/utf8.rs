@@ -21,7 +21,6 @@ impl<R: Read> Reader<R> {
         self.read_exact(&mut buff[1..bytes_to_read])?;
         from_bytes(&buff)
     }
-
 }
 
 impl<R: Read> Read for Reader<R> {
@@ -46,7 +45,6 @@ impl<R: Read + Seek> Seek for Reader<R> {
     }
 }
 
-
 pub fn from_bytes(bytes: &[u8]) -> io::Result<char> {
     let len = char_len(bytes)?;
     if len == 1 {
@@ -56,11 +54,15 @@ pub fn from_bytes(bytes: &[u8]) -> io::Result<char> {
     let cp = code_point(&bytes[..len]);
     println!(
         "Read bytes: {}, codepoint: {:X}",
-        bytes_repr(&bytes[..]), cp);
+        bytes_repr(&bytes[..]),
+        cp
+    );
     Ok(std::char::from_u32(cp).expect(&format!(
         "Verified utf-8 character could not be 
                 parsed by the std library function: {}, codepoint {:X}",
-        bytes_repr(&bytes[..]), cp)))
+        bytes_repr(&bytes[..]),
+        cp
+    )))
 }
 
 pub fn char_len(bytes: &[u8]) -> io::Result<usize> {
@@ -105,7 +107,6 @@ pub fn code_point(bytes: &[u8]) -> u32 {
         cp = add_next_byte(cp, *byte, i as u32, bytes.len() as u32);
     }
     return cp;
-
 }
 
 fn add_next_byte(cp: u32, byte: u8, num: u32, len: u32) -> u32 {
@@ -118,13 +119,13 @@ fn add_next_byte(cp: u32, byte: u8, num: u32, len: u32) -> u32 {
 
 fn add_intermediate_byte(cp: u32, mut byte: u8, num: u32) -> u32 {
     byte &= 0b0011_1111;
-    let byte = (byte as u32).overflowing_shl(num*6).0;
+    let byte = (byte as u32).overflowing_shl(num * 6).0;
     cp | byte
 }
 
 fn add_leading_byte(cp: u32, mut byte: u8, len: u32) -> u32 {
     byte &= leading_byte_clear_mask(len);
-    let byte = (byte as u32).overflowing_shl((len-1)*6).0;
+    let byte = (byte as u32).overflowing_shl((len - 1) * 6).0;
     cp | byte
 }
 
