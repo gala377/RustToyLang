@@ -57,16 +57,18 @@ pub fn from_bytes(bytes: &[u8]) -> io::Result<char> {
         bytes_repr(&bytes[..]),
         cp
     );
-    Ok(std::char::from_u32(cp).expect(&format!(
-        "Verified utf-8 character could not be 
-                parsed by the std library function: {}, codepoint {:X}",
-        bytes_repr(&bytes[..]),
-        cp
-    )))
+    Ok(std::char::from_u32(cp).unwrap_or_else(|| {
+        panic!(
+            "Verified utf-8 character could not be 
+            parsed by the std library function: {}, codepoint {:X}",
+            bytes_repr(&bytes[..]),
+            cp
+        )
+    }))
 }
 
 pub fn char_len(bytes: &[u8]) -> io::Result<usize> {
-    assert!(bytes.len() > 0);
+    assert!(!bytes.is_empty());
     let byte = bytes[0];
     if byte & 0b1000_0000 == 0b0000_0000 {
         return Ok(1);
@@ -88,13 +90,13 @@ pub fn char_len(bytes: &[u8]) -> io::Result<usize> {
 
 pub fn code_point(bytes: &[u8]) -> u32 {
     if bytes.len() == 1 {
-        return bytes[0] as u32;
+        return u32::from(bytes[0]);
     }
     let mut cp = 0;
     for (i, byte) in bytes.iter().rev().enumerate() {
         cp = add_next_byte(cp, *byte, i as u32, bytes.len() as u32);
     }
-    return cp;
+    cp
 }
 
 fn verify_intermediate_bytes(bytes: &[u8]) -> io::Result<()> {
@@ -119,13 +121,13 @@ fn add_next_byte(cp: u32, byte: u8, num: u32, len: u32) -> u32 {
 
 fn add_intermediate_byte(cp: u32, mut byte: u8, num: u32) -> u32 {
     byte &= 0b0011_1111;
-    let byte = (byte as u32).overflowing_shl(num * 6).0;
+    let byte = u32::from(byte).overflowing_shl(num * 6).0;
     cp | byte
 }
 
 fn add_leading_byte(cp: u32, mut byte: u8, len: u32) -> u32 {
     byte &= leading_byte_clear_mask(len);
-    let byte = (byte as u32).overflowing_shl((len - 1) * 6).0;
+    let byte = u32::from(byte).overflowing_shl((len - 1) * 6).0;
     cp | byte
 }
 
@@ -144,7 +146,7 @@ fn bytes_repr(bytes: &[u8]) -> String {
         repr.extend(format!("{:X} ", byte).chars());
     }
     repr.pop();
-    return repr;
+    repr
 }
 
 #[cfg(test)]
@@ -154,7 +156,7 @@ mod tests {
 
     #[test]
     fn read_one_byte_utf8_character() {
-        let mut reader = Reader::new("A".as_bytes());
+        let mut reader = Reader::new(&b"A"[..]);
         assert_eq!(reader.read_utf8_char().unwrap(), 'A');
     }
 
@@ -187,7 +189,7 @@ mod tests {
 
     #[test]
     fn reading_past_returns_unexpected_eof() {
-        let mut reader = Reader::new("".as_bytes());
+        let mut reader = Reader::new(&b""[..]);
         assert!(match reader.read_utf8_char() {
             Err(err) => match err.kind() {
                 io::ErrorKind::UnexpectedEof => true,

@@ -47,7 +47,7 @@ impl File {
             current: None,
         };
         s.current = s.next_char();
-        return s;
+        s
     }
 
     fn try_next_char(&mut self) -> Option<char> {
@@ -83,7 +83,7 @@ impl Source for File {
 
     fn next_char(&mut self) -> Option<char> {
         self.current = self.try_next_char();
-        if let None = self.current {
+        if self.current.is_none() {
             return self.current;
         }
         self.index += self.current.unwrap().len_utf8() as u64;
@@ -126,7 +126,7 @@ impl Source for File {
             .borrow_mut()
             .seek(SeekFrom::Start(saved_pos))
             .unwrap();
-        return s;
+        s
     }
 }
 
