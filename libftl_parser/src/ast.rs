@@ -90,7 +90,7 @@ pub enum ExprKind<T: Pointer> {
 pub struct FuncCall<T: Pointer> {
     pub id: NodeId,
     pub lhs: Box<Expr<T>>,
-    pub args: Vec<Box<Expr<T>>>,
+    pub args: Vec<Expr<T>>,
 }
 
 #[derive(Clone)]
@@ -160,7 +160,7 @@ pub enum TypeKind<T: Pointer> {
 pub struct FuncType<T: Pointer> {
     pub id: NodeId,
     pub ret: Box<Type<T>>,
-    pub args: Vec<Box<Type<T>>>,
+    pub args: Vec<Type<T>>,
 }
 
 #[derive(Clone)]

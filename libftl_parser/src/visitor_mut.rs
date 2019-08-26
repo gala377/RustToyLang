@@ -147,7 +147,7 @@ pub fn noop_func_def<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(
 
 pub fn walk_func_attrs<'ast, Ptr: Pointer, P: MutPass<'ast, Ptr>>(
     v: &mut P,
-    node: &'ast mut Vec<FuncAttr<Ptr>>,
+    node: &'ast mut [FuncAttr<Ptr>],
 ) {
     for attr in node {
         v.visit_func_attr(attr);

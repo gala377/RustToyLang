@@ -36,10 +36,9 @@ where
 
     pub fn fatal(&mut self, err: Box<dyn LangError<Ptr = P>>) -> ! {
         self.err(err);
-        match self.error_msg() {
-            Some(msg) => println!("{}", msg),
-            _ => (),
-        };
+        if let Some(msg) = self.error_msg() {
+            println!("{}", msg);
+        }
         panic!("Fatal error");
     }
 
@@ -56,12 +55,12 @@ where
     }
 
     fn err_to_str(&self, err: &dyn LangError<Ptr = P>) -> String {
-        String::from(format!(
+        format!(
             "[{}:{}] {}\n\n{}\n\n",
             err.begin().line(),
             err.begin().position(),
             err.desc(),
             self.src.borrow().source_between(err.begin(), err.end())
-        ))
+        )
     }
 }

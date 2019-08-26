@@ -141,7 +141,7 @@ pub fn walk_func_def<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(v: &mut P, node: &'
 
 pub fn walk_func_attrs<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(
     v: &mut P,
-    node: &'ast Vec<FuncAttr<Ptr>>,
+    node: &'ast [FuncAttr<Ptr>],
 ) {
     for attr in node {
         v.visit_func_attr(attr);
@@ -239,6 +239,10 @@ pub fn walk_func_type<'ast, Ptr: Pointer, P: Pass<'ast, Ptr>>(
     v.visit_type(&node.ret);
 }
 
+// FIXME: Automatic implementation of MutablePass for Pass
+// So that Pass instance can be used anywhere, where the
+// MutablePass is.
+//
 // Apparently this doesn't work as I tough it would
 // impl<P: Pointer, V: Pass<P>> MutPass<P> for V {
 

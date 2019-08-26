@@ -188,7 +188,7 @@ where
                 kind: ast::TypeKind::Function(ast::FuncType {
                     id: self.next_node_id(),
                     ret: Box::new(ret_t),
-                    args: args_t.into_iter().map(|x| Box::new(x)).collect(),
+                    args: args_t.into_iter().collect(),
                 }),
             }),
             attrs,
@@ -210,7 +210,7 @@ where
                 args.push(t);
             }
         }
-        return Ok(args);
+        Ok(args)
     }
 
     fn parse_type(&mut self) -> PRes<ast::Type<P>, P> {
@@ -241,7 +241,7 @@ where
         self.parse_token(token::Kind::LeftParenthesis)?;
         let mut args = Vec::new();
         while let Ok(t) = self.parse_type() {
-            args.push(Box::new(t));
+            args.push(t);
         }
         self.try_parse_token_rec(
             token::Kind::RightParenthesis,
@@ -250,7 +250,7 @@ where
         );
         let ret = Comb(self)
             .r#try(Self::parse_type)
-            .map(pres_lift_fn(|res| Box::new(res)))
+            .map(pres_lift_fn(Box::new))
             .fail_msg("Missing function type return type".to_owned())
             .run();
         Ok(ast::Type {
@@ -329,7 +329,7 @@ where
                 beg: ident.span.clone().beg,
                 end: ident.span.clone().end,
             },
-            ident: ident,
+            ident,
         })
     }
 
@@ -394,7 +394,7 @@ where
 
     fn parse_func_call(&mut self) -> PRes<ast::Expr<P>, P> {
         let beg = self.curr_ptr();
-        if let Err(_) = self.parse_token(token::Kind::At) {
+        if self.parse_token(token::Kind::At).is_err() {
             return self.parse_primary_expr();
         }
         let lhs = Comb(self)
@@ -403,7 +403,7 @@ where
             .run();
         let mut args = Vec::new();
         while let Ok(arg) = self.parse_primary_expr() {
-            args.push(Box::new(arg));
+            args.push(arg);
         }
         Ok(ast::Expr {
             id: self.next_node_id(),
@@ -414,7 +414,7 @@ where
             kind: ast::ExprKind::FunctionCall(ast::FuncCall {
                 id: self.next_node_id(),
                 lhs: Box::new(lhs),
-                args: args,
+                args,
             }),
         })
     }
@@ -571,7 +571,7 @@ where
                     ));
                     token::Token {
                         span: tok.span,
-                        kind: kind,
+                        kind,
                         value: val,
                     }
                 }
@@ -699,7 +699,7 @@ where
     fn msg_err(msg: String, beg: P, end: P) -> Box<dyn LangError<Ptr = P>> {
         let err: Box<errors::ParserError<P>> = Box::new(errors::ParserError {
             msg,
-            kind: errors::ParserErrorKind::Msg(Span { beg: beg, end: end }),
+            kind: errors::ParserErrorKind::Msg(Span { beg, end }),
         });
         err
     }

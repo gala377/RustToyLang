@@ -40,7 +40,7 @@ where
             curr_token: None,
         };
         s.next();
-        return s;
+        s
     }
 
     pub fn curr(&self) -> Option<Token<S>> {
@@ -74,7 +74,7 @@ where
         };
         self.curr_token = tok;
         trace!("next(): Returning token");
-        return self.curr();
+        self.curr()
     }
 
     fn curr_char(&self) -> Option<char> {
@@ -117,7 +117,7 @@ where
             return self.collect_integer_zero_literal();
         }
         trace!("collect_integer(): None 0 literal");
-        return self.collect_non_zero_integer_literal();
+        self.collect_non_zero_integer_literal()
     }
 
     fn collect_integer_zero_literal(&mut self) -> Option<Token<S>> {
@@ -127,13 +127,13 @@ where
                 trace!("collect_integer_zero_literal(): Integer starting with 0 error");
                 self.integers_cannot_start_with_zero_error(beg.clone());
                 let symbol = String::from("0");
-                return self.collect_poisoned_integer(symbol, beg);
+                self.collect_poisoned_integer(symbol, beg)
             }
             Some(ch) if ch.is_alphabetic() => {
                 trace!("collect_integer_zero_literal(): {} is not an integer", ch);
                 self.not_an_integer_error(beg.clone());
                 let symbol = String::from("0");
-                return self.collect_poisoned_integer(symbol, beg);
+                self.collect_poisoned_integer(symbol, beg)
             }
             _ => Some(token::Token {
                 kind: token::Kind::IntLiteral,
@@ -170,14 +170,14 @@ where
             "collect_non_zero_integer_literal(): collected integer {}",
             symbol
         );
-        return Some(token::Token {
+        Some(token::Token {
             kind: token::Kind::IntLiteral,
             value: token::Value::Integer(symbol.parse().unwrap()),
             span: Span {
                 beg,
                 end: self.curr_ptr(),
             },
-        });
+        })
     }
 
     fn collect_poisoned_integer(
@@ -193,14 +193,14 @@ where
             symbol.push(ch);
             opt = self.next_char();
         }
-        return Some(token::Token {
+        Some(token::Token {
             kind: token::Kind::Poisoned,
             value: token::Value::String(symbol),
             span: Span {
-                beg: beg,
+                beg,
                 end: self.curr_ptr(),
             },
-        });
+        })
     }
 
     fn collect_identifier(&mut self) -> Option<Token<S>> {
@@ -226,14 +226,14 @@ where
             kind = k_kind;
         }
         trace!("collect_identifier(): returning token");
-        return Some(token::Token {
+        Some(token::Token {
             kind,
             value: token::Value::String(symbol),
             span: Span {
                 beg,
                 end: self.curr_ptr(),
             },
-        });
+        })
     }
 
     fn collect_operator(&mut self) -> Option<Token<S>> {
