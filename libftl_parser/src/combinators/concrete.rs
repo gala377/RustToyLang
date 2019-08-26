@@ -7,7 +7,7 @@ use crate::{ParseErr, Parser};
 
 use super::*;
 
-pub struct TryComb<'a, S, R, F>(&'a mut Parser<S>, F)
+pub(crate) struct TryComb<'a, S, R, F>(&'a mut Parser<S>, F)
 where
     S: 'static + Source,
     F: FnOnce(&mut Parser<S>) -> PRes<R, S::Pointer>;
@@ -36,7 +36,7 @@ where
     }
 }
 
-pub struct TryFailUnexpectedErrParser<'a, S, R, C>
+pub(crate) struct TryFailUnexpectedErrParser<'a, S, R, C>
 where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
@@ -100,7 +100,7 @@ where
     }
 }
 
-pub struct TryFailMsgErrorParser<'a, S, R, C>
+pub(crate) struct TryFailMsgErrorParser<'a, S, R, C>
 where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
@@ -148,7 +148,7 @@ where
     }
 }
 
-pub struct OrComb<'a, S, R, C, F>
+pub(crate) struct OrComb<'a, S, R, C, F>
 where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R, S::Pointer>>,
@@ -198,7 +198,7 @@ where
 }
 
 #[allow(dead_code)]
-pub struct MapComb<'a, S, R1, R2, C, F>
+pub(crate) struct MapComb<'a, S, R1, R2, C, F>
 where
     S: 'static + Source,
     C: Combinator<'a, S, R1>,
@@ -244,7 +244,7 @@ where
 }
 
 #[allow(dead_code)]
-pub struct OrAndThenMapComb<'a, S, C, R1, R2, F, M>
+pub(crate) struct OrAndThenMapComb<'a, S, C, R1, R2, F, M>
 where
     S: 'static + Source,
     C: Combinator<'a, S, PRes<R2, S::Pointer>>,

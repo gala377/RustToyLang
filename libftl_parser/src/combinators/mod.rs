@@ -10,7 +10,7 @@ use concrete::{
     MapComb, OrAndThenMapComb, OrComb, TryComb, TryFailMsgErrorParser, TryFailUnexpectedErrParser,
 };
 
-pub trait Combinator<'a, S: 'static + Source, R>: Sized {
+pub(crate) trait Combinator<'a, S: 'static + Source, R>: Sized {
     fn run_chain(self) -> (&'a mut Parser<S>, R);
 
     fn run(self) -> R {
@@ -19,7 +19,7 @@ pub trait Combinator<'a, S: 'static + Source, R>: Sized {
     }
 }
 
-pub trait ResultCombinator<'a, S, P, R>
+pub(crate) trait ResultCombinator<'a, S, P, R>
 where
     P: Pointer,
     S: 'static + Source<Pointer = P>,
@@ -69,7 +69,7 @@ where
 {
 }
 
-pub trait PlainCombinator<'a, S: 'static + Source, R> {
+pub(crate) trait PlainCombinator<'a, S: 'static + Source, R> {
     fn map<R2, F>(self, mapper: F) -> MapComb<'a, S, R, R2, Self, F>
     where
         Self: Combinator<'a, S, R>,
@@ -86,7 +86,7 @@ where
 {
 }
 
-pub struct Comb<'a, S: 'static + Source>(pub &'a mut Parser<S>);
+pub(crate) struct Comb<'a, S: 'static + Source>(pub &'a mut Parser<S>);
 
 impl<'a, S, P> Comb<'a, S>
 where
