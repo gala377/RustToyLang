@@ -1,4 +1,6 @@
 use std::io;
+use std::env;
+use std::iter::Iterator;
 
 use simplelog::*;
 
@@ -6,6 +8,7 @@ use ftl_lexer::Lexer;
 use ftl_parser::Parser;
 use ftl_session::{Emitter, Session};
 use ftl_source::string::String;
+use ftl_source::file::File;
 use ftl_utility::RcRef;
 
 // test
@@ -116,12 +119,17 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn create_sess() -> RcRef<Session<ftl_source::string::String>> {
+fn create_sess() -> RcRef<Session<File>> {
     println!();
     print_red("🦊 Compilation starts...");
     print_line();
     print_red("🦒 Creating source and session...");
-    RcRef::new(Session::new(String::from(SOURCE)))
+    let source = if let Some(file) = get_file() {
+        file 
+    } else {
+        panic!("Empty source")
+    };
+    RcRef::new(Session::new(source))
 }
 
 fn print_errors<S: ftl_source::Source>(emmiter: &Emitter<S>) -> std::io::Result<()> {
@@ -137,4 +145,23 @@ fn print_errors<S: ftl_source::Source>(emmiter: &Emitter<S>) -> std::io::Result<
 
 fn init_logger(filter: LevelFilter) {
     CombinedLogger::init(vec![TermLogger::new(filter, Config::default()).unwrap()]).unwrap();
+}
+
+fn get_file() -> Option<File> {
+    let arg_iter = env::args();
+    let mut path = None;
+    let mut file_present = false;
+    for arg in arg_iter {
+        if file_present {
+            file_present = false;
+            path = Some(arg);
+        } else if arg == "--file" {
+            file_present = true;
+        }
+    }    
+    if let Some(path) = path {
+        Some(File::new(&path).unwrap())
+    } else {
+        None
+    }
 }
