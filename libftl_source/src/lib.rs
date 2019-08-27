@@ -175,9 +175,21 @@ pub mod tests {
     /// * line of the currently pointed character;
     /// * in line position of the currently pointed character;
     pub fn assert_source<T: Source>(s: &T, ch: Option<char>, line: usize, pos: usize) {
-        assert_eq!(s.curr_char(), ch, "Expected different character (right is expected one)");
-        assert_eq!(s.curr_ptr().line(), line, "Wrong line number (right is expected one)");
-        assert_eq!(s.curr_ptr().position(), pos, "Wrong in line position (right is expected one)");
+        assert_eq!(
+            s.curr_char(),
+            ch,
+            "Expected different character (right is expected one)"
+        );
+        assert_eq!(
+            s.curr_ptr().line(),
+            line,
+            "Wrong line number (right is expected one)"
+        );
+        assert_eq!(
+            s.curr_ptr().position(),
+            pos,
+            "Wrong in line position (right is expected one)"
+        );
     }
 
     fn string_source_from_empty_str<T: Source>(creator: &dyn Fn(&str) -> T) {

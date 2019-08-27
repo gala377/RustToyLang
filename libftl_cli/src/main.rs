@@ -1,5 +1,5 @@
-use std::io;
 use std::env;
+use std::io;
 
 use simplelog::*;
 
@@ -91,7 +91,7 @@ fn create_sess() -> RcRef<Session<File>> {
     print_line();
     print_red("🦒 Creating source and session...");
     let source = if let Some(file) = get_file() {
-        file 
+        file
     } else {
         panic!("Empty source")
     };
@@ -124,7 +124,7 @@ fn get_file() -> Option<File> {
         } else if arg == "--file" {
             file_present = true;
         }
-    }    
+    }
     if let Some(path) = path {
         Some(File::new(&path).unwrap())
     } else {
