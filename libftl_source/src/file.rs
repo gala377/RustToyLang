@@ -21,6 +21,7 @@ pub struct File {
 
     index: u64,
     switch_line: bool,
+    eof_reached: bool,
 }
 
 impl File {
@@ -41,12 +42,15 @@ impl File {
         let mut s = Self {
             reader: RefCell::new(utf8::Reader::new(f)),
             curr_line: 1,
-            curr_pos: 1,
+            curr_pos: 0,
             index: 0,
             switch_line: false,
             current: None,
+            eof_reached: false,
         };
         s.current = s.next_char();
+        s.curr_pos = 1;
+        s.index = 0;
         s
     }
 
@@ -66,6 +70,13 @@ impl File {
     fn curr_seek_pos(&self) -> u64 {
         self.reader.borrow_mut().seek(SeekFrom::Current(0)).unwrap()
     }
+
+    fn update_index(&mut self) {
+        self.index += match self.current {
+            None => 0,
+            Some(ch) => ch.len_utf8() as u64,
+        }
+    }
 }
 
 impl From<fs::File> for File {
@@ -82,22 +93,24 @@ impl Source for File {
     }
 
     fn next_char(&mut self) -> Option<char> {
-        self.current = self.try_next_char();
-        if self.current.is_none() {
-            return self.current;
+        if self.eof_reached {
+            return None;
         }
-        self.index += self.current.unwrap().len_utf8() as u64;
+        let peek = self.try_next_char();
+        self.eof_reached = peek.is_none();
+        self.update_index();
         if self.switch_line {
             self.switch_line = false;
             self.curr_line += 1;
             self.curr_pos = 0;
         }
-        if let Some(ch) = self.current {
+        if let Some(ch) = peek {
             if ch == '\n' {
                 self.switch_line = true;
             }
             self.curr_pos += 1;
         }
+        self.current = peek;
         self.current
     }
 

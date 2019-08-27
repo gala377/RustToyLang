@@ -19,9 +19,9 @@ Things to be done as well as progress of them.
 
 ## ~~Combinators~~
 
-## Source module
+## ~Source module~
 
-* Implement file source with the utility `utf8::Reader` struct.
+* ~Implement file source with the utility `utf8::Reader` struct.~
 
 ## Pass module
 
@@ -29,7 +29,7 @@ Things to be done as well as progress of them.
 
 * Pass to transform infix calls to normal calls.
 * _Pass which infers function types._ - WIP (ftd - branch).
-* Expr type deduction pass that fills types for the epty func decl.
+* _Expr type deduction pass that fills types for the epty func decl._ - WIP (ftd - branch)
 * Function decls verifier. (if decl is consistant with definition)
 
 ### Interpretation or compilation
@@ -38,6 +38,12 @@ Needs all of the above to be done before starting on this one.
 
 * Interpreter
 * Compiler
+
+### Cli application
+
+* arguments parsing
+* debug modes
+* compiler phases
 
 ## Document all public API
 

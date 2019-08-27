@@ -1,3 +1,5 @@
+#![allow(clippy::should_implement_trait)]
+
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display};

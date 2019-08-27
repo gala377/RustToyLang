@@ -1,13 +1,11 @@
 use std::io;
 use std::env;
-use std::iter::Iterator;
 
 use simplelog::*;
 
 use ftl_lexer::Lexer;
 use ftl_parser::Parser;
 use ftl_session::{Emitter, Session};
-use ftl_source::string::String;
 use ftl_source::file::File;
 use ftl_utility::RcRef;
 
@@ -22,38 +20,6 @@ mod phase;
 
 use helpers::*;
 use phase::*;
-
-static SOURCE: &str = r#"
-    decl nop [lang_nop]: void
-
-    decl add int int [lang_add inline]: int
-    decl mult int int [lang_mult]: int
-
-    infix 5 @@ a b: a + b
-    infix 10 $ func expr: @func expr
-    infix 50 - a b: @sub a b
-    infix 50 + a b: @add a b
-    infix 100 * a b: @mult a b
-
-    def multiple a b c: a + b + c
-    def call_mult: @multiple 1 2 3 + 2
-
-    decl foo int int : int
-    def foo a b: a + b
-
-    def bar: 1 - 2 + 3 `foo_bar 4 $ 5 * 0
-
-    def foo_bar: @bar @@ 1 + 2 + @foo 3 (2+2*2) $ 2
-
-    def test: 2 + 2 * 2
-    infix 5 <==> a b: 1 `foo 2 `foo 3 `foo 4 + (1)
-    def test3 [test4 test1]: 2*2+2*2*2*2*2*2
-
-    decl test3 [test1 test2]: int
-
-    decl apply int (int)int [attr1]: (int) int
-    decl rev_apply (int int)int (int)void: ()(int int)(int)int
-"#;
 
 fn main() -> io::Result<()> {
     init_logger(if cfg!(debug_assertions) {

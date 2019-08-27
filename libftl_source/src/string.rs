@@ -165,7 +165,7 @@ impl Source for String {
         self.raw
             .chars()
             .skip(begin.index)
-            .take(end.index - begin.index + 1)
+            .take(end.index - begin.index)
             .collect()
     }
 }
