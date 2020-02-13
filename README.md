@@ -46,7 +46,7 @@ separated by spaces. There can be 0 or more arguments.
 After which, optionally, there is a function attribute list,
 0 or more identifiers separated by spaces and surrounded with
 parenthesis.
-Following is the colos and then expression being the functions body.
+Following is the colon and then expression being the functions body.
 
 #### FuncDef Examples
 

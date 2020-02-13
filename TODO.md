@@ -6,7 +6,7 @@ Things to be done as well as progress on them.
 
 * ~~Shouldn't infix calls be expressions as well? Normal calls are...~~ - REJECTED
 
-### ~~Refactoring~~
+### Refactoring
 
 * ~~Refactor `match ... Err(err) => Err(err)` to `let smth = self.func()?`;~~
 * ~~Refactor long parse matches to `try_parse_*` functions~~
@@ -16,6 +16,7 @@ Things to be done as well as progress on them.
 * ~~refactor some matches to `unwrap_or` or `unwrap_or_else`~~
 * ~~make method `save_current_ptr` and `retrieve_last_ptr`, `ref_last_ptr` for source pointer context~~.
 * ~~make `save_ptr` and `retrieve_ptr` methods for parser.~~
+* `gn` pass doesn't walk all node types after checking the nodes id.
 
 ## ~~Combinators~~
 
